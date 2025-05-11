@@ -9,7 +9,7 @@ from flatlib import aspects
 import json
 from datetime import datetime
 import pytz
-import os
+import os  # 添加os模块导入
 
 app = Flask(__name__)
 CORS(app)
@@ -37,7 +37,6 @@ def verify_api_key():
                     'success': False,
                     'error': 'Unauthorized: Invalid or missing API key'
                 }), 401
-
 
 # 星座名称映射
 SIGN_NAMES = {
@@ -159,19 +158,23 @@ def safe_get_planet(chart, planet_id, planet_name, lang='en'):
 
 @app.route('/api/calculate', methods=['POST'])
 def calculate():
+    # 在函数开始就设置默认值
+    lang = 'en'  # 默认使用英文
     try:
         data = request.get_json()
         date = data.get('date')
         time = data.get('time')
         lat = float(data.get('latitude'))
         lon = float(data.get('longitude'))
-        lang = data.get('language', 'en')  # 默认使用英文
+        # 如果请求中有language参数，则更新lang变量
+        if 'language' in data:
+            lang = data.get('language', 'en')
         
         # 添加调试信息，检查原始语言参数
         print(f"Debug - Original language parameter: {lang}")
         
         # 如果语言是中文，使用'zh'
-        if lang.lower() in ['zh', 'cn', 'chinese', 'zh-cn', 'zhcn']:
+        if lang and lang.lower() in ['zh', 'cn', 'chinese', 'zh-cn', 'zhcn']:
             lang = 'zh'
             print("Debug - Language set to 'zh'")
         else:
@@ -274,6 +277,7 @@ def calculate():
         error_msg = str(e)
         print(f"Debug - API error: {error_msg}")
         
+        # 即使在异常情况下，lang变量也已经定义
         if lang == 'zh':
             return jsonify({
                 '成功': False,
@@ -403,4 +407,4 @@ def index():
     })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001) 
+    app.run(host='0.0.0.0', port=5001)
