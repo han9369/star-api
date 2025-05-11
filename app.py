@@ -9,9 +9,35 @@ from flatlib import aspects
 import json
 from datetime import datetime
 import pytz
+import os
 
 app = Flask(__name__)
 CORS(app)
+
+# 获取API密钥，如果环境变量中没有设置，则使用空字符串
+API_KEY = os.environ.get('X_API_KEY', '')
+
+# 添加中间件验证API密钥
+@app.before_request
+def verify_api_key():
+    # 只对/api/开头的路径进行验证
+    if request.path.startswith('/api/'):
+        # 从请求头获取API密钥
+        provided_key = request.headers.get('X-API-Key')
+        # 如果API_KEY被设置且与提供的密钥不匹配，返回401错误
+        if API_KEY and (not provided_key or provided_key != API_KEY):
+            # 根据API路径返回不同语言的错误消息
+            if request.path == '/api/calculate_zh':
+                return jsonify({
+                    '成功': False,
+                    '错误': '未授权：无效或缺少API密钥'
+                }), 401
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Unauthorized: Invalid or missing API key'
+                }), 401
+
 
 # 星座名称映射
 SIGN_NAMES = {
