@@ -938,12 +938,6 @@ def generate_chart_svg(chart, lang='en'):
                     fill='black', font_size='8px',
                     text_anchor=label['anchor']))
     
-    # 添加标题
-    title_text = "星盘图" if lang == 'zh' else "Natal Chart"
-    dwg.add(dwg.text(title_text, insert=(center_x, 30),
-                   fill='black', font_size='20px',
-                   text_anchor='middle', font_weight='bold'))
-    
     # 返回SVG字符串
     return dwg.tostring()
 
