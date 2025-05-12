@@ -433,183 +433,515 @@ def index():
     })
 
 def generate_chart_svg(chart, lang='en'):
-    # 创建SVG画布
-    dwg = svgwrite.Drawing(profile='tiny', size=('600px', '600px'))
+    # 创建SVG画布 - 修改为透明背景
+    dwg = svgwrite.Drawing(profile='tiny', size=('720px', '720px'))
     
     # 定义中心点和半径
-    center_x, center_y = 300, 300
-    radius = 250
+    center_x, center_y = 360, 360  # 将中心点调整为画布中心
+    inner_circle_radius = 216  # 内圈半径
+    zodiac_inner_radius = 216  # 星座圈内半径
+    zodiac_outer_radius = 261  # 星座圈外半径
+    house_inner_radius = 261   # 宫位圈内半径
+    house_outer_radius = 288   # 宫位圈外半径
     
-    # 绘制外圈（黑底）
-    dwg.add(dwg.circle(center=(center_x, center_y), r=radius, 
-                     fill='black', stroke='white', stroke_width=2))
-    
-    # 绘制内圈（更小的圆）
-    inner_radius = radius * 0.7
-    dwg.add(dwg.circle(center=(center_x, center_y), r=inner_radius, 
-                     fill='none', stroke='white', stroke_width=1))
-    
-    # 绘制内圈的径向线和同心圆
-    # 首先绘制内圈的同心圆 (3个同心圆，分别在内圈的1/3和2/3处)
-    inner_circle_radius = radius * 0.5
-    inner_circle_1 = inner_circle_radius * 0.25
-    inner_circle_2 = inner_circle_radius * 0.5
-    
-    # 绘制星座分割线和标签（12宫）
-    for i in range(12):
-        angle = i * 30
-        rad = math.radians(angle)
-        x1 = center_x + radius * math.sin(rad)
-        y1 = center_y - radius * math.cos(rad)
-        
-        # 画线
-        dwg.add(dwg.line(start=(center_x, center_y), end=(x1, y1),
-                        stroke='white', stroke_width=1))
-        
-        # 添加星座标签
-        label_angle = math.radians(angle + 15)  # 位于每个星座的中间
-        label_x = center_x + (radius + 20) * math.sin(label_angle)
-        label_y = center_y - (radius + 20) * math.cos(label_angle)
-        
-        # 获取星座名
-        sign_index = (i + 10) % 12  # 调整起始点为白羊座(0°)
-        signs = list(SIGN_NAMES.values())
-        
-        dwg.add(dwg.text(signs[sign_index], 
-                        insert=(label_x, label_y),
-                        fill='white', font_size='12px',
-                        text_anchor='middle'))
-        
-        # 添加度数标记
-        degree_text = f"{(i * 30)}°"
-        degree_x = center_x + (radius - 15) * math.sin(rad)
-        degree_y = center_y - (radius - 15) * math.cos(rad)
-        dwg.add(dwg.text(degree_text,
-                        insert=(degree_x, degree_y),
-                        fill='#AAAAAA', font_size='10px',
-                        text_anchor='middle'))
+    # 获取上升点的度数
+    asc = chart.get(const.ASC)
+    asc_longitude = asc.lon
     
     # 收集行星数据
     planets_data = []
     planet_definitions = [
-        (const.SUN, 'Sun' if lang == 'en' else '太阳'),
-        (const.MOON, 'Moon' if lang == 'en' else '月亮'),
-        (const.ASC, 'Ascendant' if lang == 'en' else '上升点'),
-        (const.VENUS, 'Venus' if lang == 'en' else '金星'),
-        (const.MARS, 'Mars' if lang == 'en' else '火星'),
-        (const.MERCURY, 'Mercury' if lang == 'en' else '水星'),
-        (const.NORTH_NODE, 'North Node' if lang == 'en' else '北交点'),
-        (const.JUPITER, 'Jupiter' if lang == 'en' else '木星'),
-        (const.SATURN, 'Saturn' if lang == 'en' else '土星')
+        (const.SUN, "Sun" if lang == 'en' else '太阳'),
+        (const.MOON, "Moon" if lang == 'en' else '月亮'),
+        (const.ASC, "Ascendant" if lang == 'en' else '上升点'),
+        (const.VENUS, "Venus" if lang == 'en' else '金星'),
+        (const.MARS, "Mars" if lang == 'en' else '火星'),
+        (const.MERCURY, "Mercury" if lang == 'en' else '水星'),
+        (const.NORTH_NODE, "N.Node" if lang == 'en' else '北交点'),  # 缩短名称以避免文字拥挤
+        (const.JUPITER, "Jupiter" if lang == 'en' else '木星'),
+        (const.SATURN, "Saturn" if lang == 'en' else '土星')
     ]
     
-    # 首先绘制相位线（这样行星符号会在上面）
-    for i, (p1_id, p1_name) in enumerate(planet_definitions):
-        for j, (p2_id, p2_name) in enumerate(planet_definitions):
-            if i < j:  # 避免重复
-                try:
-                    # 获取行星对象
-                    planet1 = chart.get(p1_id)
-                    planet2 = chart.get(p2_id)
-                    
-                    # 计算相位
-                    aspect = aspects.getAspect(planet1, planet2, const.MAJOR_ASPECTS)
-                    
-                    if aspect:
-                        aspect_type = aspect.type
-                        
-                        # 计算行星位置
-                        p1_rad = math.radians(planet1.lon)
-                        p2_rad = math.radians(planet2.lon)
-                        
-                        p1_x = center_x + radius * 0.8 * math.sin(p1_rad)
-                        p1_y = center_y - radius * 0.8 * math.cos(p1_rad)
-                        
-                        p2_x = center_x + radius * 0.8 * math.sin(p2_rad)
-                        p2_y = center_y - radius * 0.8 * math.cos(p2_rad)
-                        
-                        # 绘制相位线
-                        color = ASPECT_COLORS.get(aspect_type, "#FFFFFF")
-                        stroke_dasharray = "5,5" if aspect_type in [90, 180] else None
-                        
-                        if stroke_dasharray:
-                            dwg.add(dwg.line(
-                                start=(p1_x, p1_y),
-                                end=(p2_x, p2_y),
-                                stroke=color,
-                                stroke_width=1,
-                                stroke_dasharray=stroke_dasharray
-                            ))
-                        else:
-                            dwg.add(dwg.line(
-                                start=(p1_x, p1_y),
-                                end=(p2_x, p2_y),
-                                stroke=color,
-                                stroke_width=1
-                            ))
-                        
-                except Exception as e:
-                    print(f"Error calculating aspect between {p1_name} and {p2_name}: {e}")
-    
-    # 绘制行星符号
+    # 收集所有行星的位置和数据
     for planet_id, planet_name in planet_definitions:
         try:
             planet = chart.get(planet_id)
             longitude = planet.lon
             
-            # 转换为SVG坐标
-            planet_rad = math.radians(longitude)
-            planet_x = center_x + radius * 0.8 * math.sin(planet_rad)
-            planet_y = center_y - radius * 0.8 * math.cos(planet_rad)
+            # 转换为SVG坐标 - 使用动态半径来避免行星重叠
+            planet_rad = math.radians(90 - longitude)
+            planet_x = center_x + inner_circle_radius * 0.7 * math.cos(planet_rad)
+            planet_y = center_y - inner_circle_radius * 0.7 * math.sin(planet_rad)
             
-            # 添加行星背景圆圈
-            dwg.add(dwg.circle(center=(planet_x, planet_y), r=12,
-                             fill='black', stroke='white', stroke_width=1))
-            
-            # 添加行星符号
-            symbol = PLANET_SYMBOLS.get(planet_id, planet_name[0])
-            
-            # 根据行星类型选择颜色
-            color = "#FFFFFF"  # 默认白色
-            if planet_id in [const.SUN, const.MARS]:
-                color = "#FF5555"  # 红色系
-            elif planet_id in [const.MOON, const.VENUS]:
-                color = "#55FF55"  # 绿色系
-            elif planet_id in [const.MERCURY, const.JUPITER]:
-                color = "#5555FF"  # 蓝色系
-                
-            dwg.add(dwg.text(symbol, insert=(planet_x, planet_y+5),
-                          fill=color, font_size='16px',
-                          text_anchor='middle', font_weight='bold'))
-            
-            # 添加行星度数标签
-            degree_text = f"{planet_name}: {round(longitude, 1)}°"
-            
-            # 为了避免文字重叠，我们在外环围绕星盘放置标签
-            label_distance = radius + 40
-            label_x = center_x + label_distance * math.sin(planet_rad)
-            label_y = center_y - label_distance * math.cos(planet_rad)
-            
-            dwg.add(dwg.text(degree_text, insert=(label_x, label_y),
-                          fill='white', font_size='10px',
-                          text_anchor='middle'))
-            
-            # 保存行星数据用于后续计算
             planets_data.append({
                 'id': planet_id,
                 'name': planet_name,
                 'longitude': longitude,
                 'x': planet_x,
-                'y': planet_y
+                'y': planet_y,
+                'rad': planet_rad
             })
-            
         except Exception as e:
-            print(f"Error plotting planet {planet_id}: {e}")
+            print(f"Error collecting planet {planet_id}: {e}")
+    
+    # 检测并调整重叠的行星
+    def distance(p1, p2):
+        return math.sqrt((p1['x'] - p2['x'])**2 + (p1['y'] - p2['y'])**2)
+    
+    # 调整行星位置以避免重叠
+    min_distance = 25  # 最小行星间距
+    for i, p1 in enumerate(planets_data):
+        for j, p2 in enumerate(planets_data):
+            if i < j:  # 避免重复比较
+                dist = distance(p1, p2)
+                if dist < min_distance:
+                    # 计算需要调整的距离
+                    adjust = (min_distance - dist) / 2
+                    
+                    # 计算方向向量
+                    dx = p2['x'] - p1['x']
+                    dy = p2['y'] - p1['y']
+                    mag = math.sqrt(dx*dx + dy*dy)
+                    
+                    if mag > 0:  # 防止除以零
+                        # 标准化
+                        dx /= mag
+                        dy /= mag
+                        
+                        # 调整行星1向中心移动
+                        radius_p1 = math.sqrt((p1['x'] - center_x)**2 + (p1['y'] - center_y)**2)
+                        angle_p1 = math.atan2(center_y - p1['y'], p1['x'] - center_x)
+                        new_radius_p1 = radius_p1 - adjust
+                        p1['x'] = center_x + new_radius_p1 * math.cos(angle_p1)
+                        p1['y'] = center_y - new_radius_p1 * math.sin(angle_p1)
+                        
+                        # 调整行星2向外移动
+                        radius_p2 = math.sqrt((p2['x'] - center_x)**2 + (p2['y'] - center_y)**2)
+                        angle_p2 = math.atan2(center_y - p2['y'], p2['x'] - center_x)
+                        new_radius_p2 = radius_p2 + adjust
+                        p2['x'] = center_x + new_radius_p2 * math.cos(angle_p2)
+                        p2['y'] = center_y - new_radius_p2 * math.sin(angle_p2)
+    
+    # 绘制相位线（只显示重要相位且忽略太弱的相位）
+    aspect_lines = []  # 保存相位线信息以便稍后绘制
+    for i, p1 in enumerate(planets_data):
+        for j, p2 in enumerate(planets_data):
+            if i < j:  # 避免重复
+                try:
+                    # 获取行星对象
+                    planet1 = chart.get(p1['id'])
+                    planet2 = chart.get(p2['id'])
+                    
+                    # 计算相位
+                    aspect = aspects.getAspect(planet1, planet2, const.MAJOR_ASPECTS)
+                    
+                    # 增加容错度至10度，以显示更多的相位线
+                    if aspect and aspect.type in [0, 60, 90, 120, 180] and abs(aspect.orb) < 10:
+                        aspect_type = aspect.type
+                        
+                        # 设置相位线样式
+                        if aspect_type == 0:  # 合相
+                            color = "#0000FF"  # 蓝色
+                            dash = None
+                        elif aspect_type == 60 or aspect_type == 120:  # 六分相或三分相
+                            color = "#00AA00"  # 绿色
+                            dash = None
+                        elif aspect_type == 90 or aspect_type == 180:  # 四分相或对分相
+                            color = "#FF0000"  # 红色
+                            dash = "5,5"
+                        else:
+                            color = "#777777"  # 灰色
+                            dash = None
+                            
+                        aspect_lines.append({
+                            'start': (p1['x'], p1['y']),
+                            'end': (p2['x'], p2['y']),
+                            'color': color,
+                            'dash': dash
+                        })
+                    
+                    # 为了增加更多线条，添加次要相位计算
+                    # 尝试计算次要相位：30°(半六分相), 45°(半刑相), 135°(盔甲), 150°(似六分相)
+                    minor_aspects = [45, 135]  # 只保留半刑相和盔甲相(红色系)，移除30°和150°(绿色系)
+                    
+                    for minor_type in minor_aspects:
+                        # 计算两个行星之间的角度差
+                        angle_diff = abs(planet1.lon - planet2.lon) % 360
+                        if angle_diff > 180:
+                            angle_diff = 360 - angle_diff
+                            
+                        # 检查是否接近次要相位
+                        orb = abs(angle_diff - minor_type)
+                        if orb <= 3:  # 较小的容错度，避免太多线条
+                            # 只保留半刑相和盔甲相(红色系)
+                            color = "#CC4444"  # 更亮的红色
+                            dash = "3,3"
+                            
+                            aspect_lines.append({
+                                'start': (p1['x'], p1['y']),
+                                'end': (p2['x'], p2['y']),
+                                'color': color,
+                                'dash': dash
+                            })
+                except Exception as e:
+                    print(f"Error calculating aspect between {p1['name']} and {p2['name']}: {e}")
+    
+    # 星座背景颜色
+    # 元素顺序：火、土、风、水
+    ELEMENT_COLORS = {
+        "fire": "#ffccaa",  # 火象星座 - 浅橙色 (白羊、狮子、射手)
+        "earth": "#d2b48c", # 土象星座 - 棕褐色 (金牛、处女、摩羯)
+        "air": "#bbddff",   # 风象星座 - 浅蓝色 (双子、天秤、水瓶)
+        "water": "#aadddd"  # 水象星座 - 青绿色 (巨蟹、天蝎、双鱼)
+    }
+    
+    # 星座元素对应关系
+    SIGN_ELEMENTS = {
+        'Aries': 'fire', 'Leo': 'fire', 'Sagittarius': 'fire',
+        'Taurus': 'earth', 'Virgo': 'earth', 'Capricorn': 'earth',
+        'Gemini': 'air', 'Libra': 'air', 'Aquarius': 'air',
+        'Cancer': 'water', 'Scorpio': 'water', 'Pisces': 'water'
+    }
+    
+    # 绘制主要圆环
+    # 最外层宫位圈外圆
+    dwg.add(dwg.circle(center=(center_x, center_y), r=house_outer_radius, 
+                       fill='none', stroke='black', stroke_width=2))
+    
+    # 宫位圈内圆/星座圈外圆
+    dwg.add(dwg.circle(center=(center_x, center_y), r=house_inner_radius, 
+                       fill='none', stroke='black', stroke_width=1))
+    
+    # 内圈 - 行星相位圈 (去掉了星座圈内圆，因为现在与内圈重叠)
+    dwg.add(dwg.circle(center=(center_x, center_y), r=inner_circle_radius, 
+                       fill='white', stroke='black', stroke_width=1))
+    
+    # 计算宫位位置（基于上升点的位置）
+    # 宫位1从上升点(ASC)开始
+    houses_positions = []
+    for i in range(12):
+        house_start = (asc_longitude + i * 30) % 360
+        houses_positions.append(house_start)
+    
+    # 先绘制宫位分隔线
+    for house_start in houses_positions:
+        angle_rad = math.radians(90 - house_start)
+        
+        # 从内圈到宫位外圈的线
+        x1 = center_x + zodiac_inner_radius * math.cos(angle_rad)
+        y1 = center_y - zodiac_inner_radius * math.sin(angle_rad)
+        x2 = center_x + house_outer_radius * math.cos(angle_rad)
+        y2 = center_y - house_outer_radius * math.sin(angle_rad)
+        
+        dwg.add(dwg.line(start=(x1, y1), end=(x2, y2), 
+                        stroke='black', stroke_width=0.7))
+    
+    # 绘制宫位数字
+    for i, house_start in enumerate(houses_positions):
+        house_number = i + 1  # 宫位编号从1开始
+        house_end = (house_start + 30) % 360
+        house_mid = (house_start + 15) % 360
+        
+        # 宫位数字位置
+        mid_angle_rad = math.radians(90 - house_mid)
+        label_radius = (house_inner_radius + house_outer_radius) / 2
+        
+        label_x = center_x + label_radius * math.cos(mid_angle_rad)
+        label_y = center_y - label_radius * math.sin(mid_angle_rad)
+        
+        # 根据宫位类型选择颜色
+        house_color = '#333333'  # 默认灰色
+        if house_number in [1, 5, 9]:  # 火相宫
+            house_color = '#FF3333'  # 红色
+        elif house_number in [2, 6, 10]:  # 土相宫
+            house_color = '#AA6622'  # 土黄色
+        elif house_number in [3, 7, 11]:  # 风相宫
+            house_color = '#3366FF'  # 蓝色
+        elif house_number in [4, 8, 12]:  # 水相宫
+            house_color = '#33AAAA'  # 青色
+            
+        dwg.add(dwg.text(str(house_number), 
+                        insert=(label_x, label_y),
+                        fill=house_color, font_size='11px', font_weight='bold',
+                        text_anchor='middle'))
+    
+    # 计算星座和宫位位置
+    signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 
+            'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces']
+    
+    # 绘制星座分隔线
+    for i in range(12):
+        angle = i * 30
+        angle_rad = math.radians(90 - angle)
+        
+        # 从星座内圈到星座外圈的线
+        x1 = center_x + zodiac_inner_radius * math.cos(angle_rad)
+        y1 = center_y - zodiac_inner_radius * math.sin(angle_rad)
+        x2 = center_x + zodiac_outer_radius * math.cos(angle_rad)
+        y2 = center_y - zodiac_outer_radius * math.sin(angle_rad)
+        
+        dwg.add(dwg.line(start=(x1, y1), end=(x2, y2), 
+                        stroke='black', stroke_width=0.5))
+    
+    # 绘制星座区域（完全填充扇形）
+    for i in range(12):
+        # 星座起始角度 (0° 是白羊座起点)
+        start_angle = i * 30
+        end_angle = (i + 1) * 30
+        
+        # 获取星座元素
+        sign = signs[i]
+        element = SIGN_ELEMENTS[sign]
+        fill_color = ELEMENT_COLORS[element]
+        
+        # 创建星座区域路径
+        start_rad = math.radians(90 - start_angle)
+        end_rad = math.radians(90 - end_angle)
+        
+        # 创建扇区路径
+        path_data = f"M {center_x + zodiac_inner_radius * math.cos(start_rad)},{center_y - zodiac_inner_radius * math.sin(start_rad)} "
+        path_data += f"L {center_x + zodiac_outer_radius * math.cos(start_rad)},{center_y - zodiac_outer_radius * math.sin(start_rad)} "
+        path_data += f"A {zodiac_outer_radius},{zodiac_outer_radius} 0 0,1 {center_x + zodiac_outer_radius * math.cos(end_rad)},{center_y - zodiac_outer_radius * math.sin(end_rad)} "
+        path_data += f"L {center_x + zodiac_inner_radius * math.cos(end_rad)},{center_y - zodiac_inner_radius * math.sin(end_rad)} "
+        path_data += f"A {zodiac_inner_radius},{zodiac_inner_radius} 0 0,0 {center_x + zodiac_inner_radius * math.cos(start_rad)},{center_y - zodiac_inner_radius * math.sin(start_rad)} Z"
+        
+        # 添加星座区域，带颜色填充
+        dwg.add(dwg.path(d=path_data, fill=fill_color, stroke='black', stroke_width=0.5))
+        
+        # 添加星座名称
+        mid_angle = (start_angle + end_angle) / 2
+        mid_angle_rad = math.radians(90 - mid_angle)
+        
+        # 计算星座名称位置 - 在星座区域中心点
+        sign_radius = (zodiac_inner_radius + zodiac_outer_radius) / 2
+        sign_x = center_x + sign_radius * math.cos(mid_angle_rad)
+        sign_y = center_y - sign_radius * math.sin(mid_angle_rad)
+        
+        # 对于长名称星座，使用较小字体
+        font_size = '9px'
+        if sign in ['Sagittarius', 'Capricorn']:
+            font_size = '7px'
+            
+        dwg.add(dwg.text(sign, 
+                        insert=(sign_x, sign_y),
+                        fill='black', font_size=font_size,
+                        text_anchor='middle'))
+    
+    # 绘制内圈的径向线和同心圆
+    # 首先绘制内圈的同心圆 (3个同心圆，分别在内圈的1/3和2/3处)
+    inner_circle_1 = inner_circle_radius * 0.25  # 从0.33减小到0.25
+    inner_circle_2 = inner_circle_radius * 0.5   # 从0.67减小到0.5
+    
+    # 绘制内圈环上的度数标记和径向线
+    for i in range(0, 360, 30):
+        rad = math.radians(90 - i)
+        
+        # 绘制径向线 (从中心到内圈边界)
+        dwg.add(dwg.line(
+            start=(center_x, center_y),
+            end=(center_x + inner_circle_radius * math.cos(rad), center_y - inner_circle_radius * math.sin(rad)),
+            stroke='#777777',
+            stroke_width='0.5'
+        ))
+        
+        # 角度标记放在图中，与截图相同的位置
+        degree_label_radius = inner_circle_radius * 0.85
+        x1 = center_x + degree_label_radius * math.cos(rad)
+        y1 = center_y - degree_label_radius * math.sin(rad)
+        
+        # 添加度数标记
+        dwg.add(dwg.text(f"{i}°", 
+                        insert=(x1, y1),
+                        fill='#777777', font_size='8px',
+                        text_anchor='middle'))
+    
+    # 现在绘制所有相位线
+    for line in aspect_lines:
+        if line['dash']:
+            dwg.add(dwg.line(
+                start=line['start'],
+                end=line['end'],
+                stroke=line['color'],
+                stroke_width=1.2,  # 加粗虚线
+                stroke_dasharray=line['dash']
+            ))
+        else:
+            dwg.add(dwg.line(
+                start=line['start'],
+                end=line['end'],
+                stroke=line['color'],
+                stroke_width=1.2  # 加粗实线
+            ))
+    
+    # 绘制行星符号
+    for planet in planets_data:
+        try:
+            planet_x = planet['x']
+            planet_y = planet['y']
+            
+            # 添加行星背景圆圈
+            circle_radius = 9
+            # ASC用稍小一点的圆圈，避免超出边框
+            if planet['id'] == const.ASC:
+                circle_radius = 9  # 从7增加到8，扩大ASC圆圈
+                
+            dwg.add(dwg.circle(center=(planet_x, planet_y), r=circle_radius,
+                             fill='white', stroke='black', stroke_width=1))
+            
+            # 添加行星符号
+            symbol = PLANET_SYMBOLS.get(planet['id'], planet['name'][0])
+            
+            # 根据行星类型选择颜色
+            color = "#000000"  # 默认黑色
+            if planet['id'] in [const.SUN, const.MARS]:
+                color = "#FF0000"  # 红色系
+            elif planet['id'] in [const.MOON, const.VENUS]:
+                color = "#009900"  # 绿色系
+            elif planet['id'] in [const.MERCURY, const.JUPITER]:
+                color = "#0000FF"  # 蓝色系
+            
+            # ASC用较小的字体
+            font_size = '12px'
+            y_offset = 4
+            if planet['id'] == const.ASC:
+                font_size = '8px'  # 从9px减小到8px
+                y_offset = 3
+                
+            dwg.add(dwg.text(symbol, insert=(planet_x, planet_y+y_offset),
+                          fill=color, font_size=font_size,
+                          text_anchor='middle', font_weight='bold'))
+        except Exception as e:
+            print(f"Error plotting planet {planet['name']}: {e}")
+    
+    # 修改行星度数标签显示方式
+    # 创建标签组以检测和避免重叠
+    planet_labels = []
+    
+    for planet in planets_data:
+        try:
+            # 简化行星名称
+            simple_name = planet['name']
+            if simple_name == "Ascendant":
+                simple_name = "Asc"
+            elif simple_name == "Jupiter":
+                simple_name = "Jup"
+            elif simple_name == "Mercury":
+                simple_name = "Mer"
+            elif simple_name == "Saturn":
+                simple_name = "Sat"
+            elif simple_name == "North_Node":
+                simple_name = "N.Node"
+            
+            # 在图表外围显示行星信息
+            angle_deg = planet['longitude']
+            # 格式化显示度数
+            degree_text = f"{simple_name}: {int(round(angle_deg))}°"
+            
+            # 计算标签位置，放在最外圈，调整距离防止文字超出图表边界
+            label_rad = math.radians(90 - angle_deg)
+            label_distance = house_outer_radius + 15  # 从25减小到15，使文字更靠近星盘
+            
+            # 处理标签间距和位置
+            text_anchor = 'middle'
+            label_y_offset = 0
+            
+            # 根据角度调整文本对齐方式和位置，使其更好地适应图表范围
+            if angle_deg >= 0 and angle_deg < 90:  # 右上象限
+                if angle_deg < 45:
+                    text_anchor = 'start'
+                    label_y_offset = -5
+                else:
+                    text_anchor = 'start'
+                    label_y_offset = 0
+            elif angle_deg >= 90 and angle_deg < 180:  # 右下象限
+                if angle_deg < 135:
+                    text_anchor = 'start'
+                    label_y_offset = 5
+                else:
+                    text_anchor = 'start'
+                    label_y_offset = 10
+            elif angle_deg >= 180 and angle_deg < 270:  # 左下象限
+                if angle_deg < 225:
+                    text_anchor = 'end'
+                    label_y_offset = 5
+                else:
+                    text_anchor = 'end'
+                    label_y_offset = 0
+            else:  # 左上象限
+                if angle_deg < 315:
+                    text_anchor = 'end'
+                    label_y_offset = -5
+                else:
+                    text_anchor = 'end'
+                    label_y_offset = -10
+            
+            label_x = center_x + label_distance * math.cos(label_rad)
+            label_y = center_y - label_distance * math.sin(label_rad) + label_y_offset
+            
+            # 保存标签数据以检测重叠
+            planet_labels.append({
+                'text': degree_text,
+                'x': label_x,
+                'y': label_y,
+                'anchor': text_anchor,
+                'angle': angle_deg
+            })
+        except Exception as e:
+            print(f"Error preparing planet label {planet['name']}: {e}")
+    
+    # 调整标签位置以避免重叠
+    def label_overlaps(l1, l2):
+        # 计算两个标签之间的距离
+        dx = l1['x'] - l2['x']
+        dy = l1['y'] - l2['y']
+        distance = math.sqrt(dx*dx + dy*dy)
+        
+        # 根据文本长度估计标签宽度
+        l1_width = len(l1['text']) * 5  # 每个字符约5像素宽
+        l2_width = len(l2['text']) * 5
+        
+        # 水平对齐的标签需要更多空间
+        if l1['anchor'] == l2['anchor']:
+            min_distance = 15  # 垂直最小间距
+        else:
+            min_distance = 10
+            
+        return distance < min_distance
+    
+    # 遍历所有标签对，调整重叠标签
+    for i, l1 in enumerate(planet_labels):
+        for j, l2 in enumerate(planet_labels):
+            if i < j and label_overlaps(l1, l2):
+                # 如果角度相近，垂直错开
+                angle_diff = abs(l1['angle'] - l2['angle'])
+                if angle_diff < 15 or angle_diff > 345:
+                    # 角度相近的标签，垂直错开
+                    l1['y'] -= 12
+                    l2['y'] += 12
+                else:
+                    # 角度不同的标签，调整距离
+                    if l1['angle'] > l2['angle']:
+                        # 稍微调整两个标签的位置
+                        l1_rad = math.radians(90 - (l1['angle'] + 5))
+                        l2_rad = math.radians(90 - (l2['angle'] - 5))
+                        
+                        label_distance = house_outer_radius + 15
+                        l1['x'] = center_x + label_distance * math.cos(l1_rad)
+                        l1['y'] = center_y - label_distance * math.sin(l1_rad) + l1.get('label_y_offset', 0)
+                        
+                        l2['x'] = center_x + label_distance * math.cos(l2_rad)
+                        l2['y'] = center_y - label_distance * math.sin(l2_rad) + l2.get('label_y_offset', 0)
+    
+    # 添加调整后的标签
+    for label in planet_labels:
+        dwg.add(dwg.text(label['text'], insert=(label['x'], label['y']),
+                    fill='black', font_size='8px',
+                    text_anchor=label['anchor']))
     
     # 添加标题
     title_text = "星盘图" if lang == 'zh' else "Natal Chart"
     dwg.add(dwg.text(title_text, insert=(center_x, 30),
-                   fill='white', font_size='20px',
+                   fill='black', font_size='20px',
                    text_anchor='middle', font_weight='bold'))
     
     # 返回SVG字符串
