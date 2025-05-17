@@ -11,6 +11,7 @@ from datetime import datetime
 import pytz
 import svgwrite
 import math
+from synastry_service import get_synastry_analysis
 
 app = Flask(__name__)
 CORS(app)
@@ -1118,5 +1119,67 @@ def combined_data():
                 'error': error_msg
             }), 400
 
+@app.route('/api/compare', methods=['POST'])
+def compare_charts():
+    """处理两个星盘的合盘分析请求"""
+    lang = 'en'  # 默认使用英文
+    try:
+        data = request.get_json()
+        
+        # 解析用户1数据
+        user1_date = data.get('user1_date')
+        user1_time = data.get('user1_time')
+        user1_lat = float(data.get('user1_lat'))
+        user1_lon = float(data.get('user1_lon'))
+        user1_name = data.get('user1_name', 'Person 1')
+        
+        # 解析用户2数据
+        user2_date = data.get('user2_date')
+        user2_time = data.get('user2_time')
+        user2_lat = float(data.get('user2_lat'))
+        user2_lon = float(data.get('user2_lon'))
+        user2_name = data.get('user2_name', 'Person 2')
+        
+        # 语言设置
+        if 'language' in data:
+            lang = data.get('language', 'en')
+        
+        # 如果语言是中文，使用'zh'
+        if lang and lang.lower() in ['zh', 'cn', 'chinese', 'zh-cn', 'zhcn']:
+            lang = 'zh'
+        else:
+            lang = 'en'  # 其他情况默认使用英文
+        
+        # 验证必要的输入
+        required_fields = [
+            'user1_date', 'user1_time', 'user1_lat', 'user1_lon',
+            'user2_date', 'user2_time', 'user2_lat', 'user2_lon'
+        ]
+        
+        missing_fields = [field for field in required_fields if data.get(field) is None]
+        if missing_fields:
+            return jsonify({
+                "status": "error",
+                "error": f"Missing required fields: {', '.join(missing_fields)}"
+            }), 400
+        
+        # 计算两个星盘
+        chart1 = calculate_chart(user1_date, user1_time, user1_lat, user1_lon)
+        chart2 = calculate_chart(user2_date, user2_time, user2_lat, user2_lon)
+        
+        # 调用synastry_service进行合盘分析
+        result = get_synastry_analysis(chart1, chart2, lang, user1_name, user2_name)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Debug - API error: {error_msg}")
+        
+        return jsonify({
+            "status": "error",
+            "error": error_msg
+        }), 400
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001) 
+    app.run(host='0.0.0.0', port=5002) 
