@@ -105,68 +105,18 @@ def get_synastry_analysis(chart1, chart2, lang='en', user1_name='Person 1', user
         # 使用兼容性数据
         nakshatra_compatibility = get_comprehensive_compatibility(nakshatra1, nakshatra2)
         
-        # 计算兼容性评分 (基础得分)
-        compatibility_score = calculate_compatibility_score(aspects_data)
-        
-        # 获取关系类型得分
+        # 获取关系类型得分 - 直接使用作为主要兼容性分数
         relationship_score = constellation_relationships.get("relationship", {}).get("score", 0)
         relationship_type = constellation_relationships.get("relationship", {}).get("type", "")
         
-        # 如果关系类型为空，使用默认类型
-        if not relationship_type:
-            relationship_type = "MAITRI"  # 默认使用命之星（Soul Connection）关系
-            print(f"Warning: Empty relationship_type detected. Using default: {relationship_type}")
-        
-        # 应用星宿关系调整
-        relationship_adjustment = 0
-        if relationship_type == "MAITRI":  # 命之星
-            relationship_adjustment = 10
-        elif relationship_type == "SAHAJ":  # 荣亲
-            relationship_adjustment = 7
-        elif relationship_type == "MITRA":  # 友衰
-            relationship_adjustment = 5
-        elif relationship_type == "KARMA":  # 业胎
-            relationship_adjustment = 0
-        elif relationship_type == "ADHI":  # 安坏
-            relationship_adjustment = -3
-        elif relationship_type == "VAIRI":  # 危成
-            relationship_adjustment = -5
-        
-        # D9盘和谐度调整
-        d9_adjustment = 0
-        if constellation_relationships.get("d9_harmony", {}).get("is_harmonious", False):
-            d9_adjustment = 5
-        
-        # 行星能量互动调整
-        energy_adjustment = constellation_relationships.get("planetary_energy", {}).get("strength", 0)
-        
-        # 星宿兼容性调整
-        ashtakoot_adjustment = 0
-        if 'ashtakoot_points' in nakshatra_compatibility:
-            if nakshatra_compatibility['ashtakoot_points'] >= 20:
-                ashtakoot_adjustment = 5
-            elif nakshatra_compatibility['ashtakoot_points'] >= 16:
-                ashtakoot_adjustment = 2
-            else:
-                ashtakoot_adjustment = -3
-        
-        if nakshatra_compatibility.get('vedha_dosha', False) or nakshatra_compatibility.get('rajju_dosha', False):
-            ashtakoot_adjustment -= 3
-        
-        if nakshatra_compatibility.get('mahendra', False):
-            ashtakoot_adjustment += 3
-        
-        # 总体调整
-        total_adjustment = relationship_adjustment + d9_adjustment + energy_adjustment + ashtakoot_adjustment
-        
-        # 调整最终得分
-        adjusted_compatibility_score = max(0, min(100, compatibility_score + total_adjustment))
-        
         # 获取兼容性等级
-        compatibility_level = get_compatibility_level(adjusted_compatibility_score)
+        compatibility_level = get_compatibility_level(relationship_score)
+        
+        # 计算相位基础评分 (但不用于最终得分)
+        calculate_compatibility_score(aspects_data)
         
         # 生成摘要
-        summary = generate_summary(aspects_data, adjusted_compatibility_score)
+        summary = generate_summary(aspects_data, relationship_score)
         
         # 添加星宿关系描述
         relationship_description = constellation_relationships.get("relationship", {}).get("description", "")
@@ -189,7 +139,7 @@ def get_synastry_analysis(chart1, chart2, lang='en', user1_name='Person 1', user
         # 创建响应数据
         response = {
             "status": "success",
-            "compatibility_score": round(adjusted_compatibility_score),
+            "compatibility_score": round(relationship_score),
             "compatibility_level": compatibility_level.lower(),
             "relationship_summary": summary,
             
@@ -495,47 +445,126 @@ def get_house_positions(chart1, chart2):
 
 def calculate_compatibility_score(aspects):
     """基于相位计算兼容性分数"""
-    score = 50  # 基础分数
+    score = 40  # 降低基础分数以允许更大的区分度
+    
+    # 保存相位计数，用于后续计算
+    harmonious_aspects = 0
+    challenging_aspects = 0
+    neutral_aspects = 0
+    
+    # 太阳月亮连线的重要相位计数
+    sun_moon_harmonious = 0
+    sun_moon_challenging = 0
+    
+    # 金星火星连线的重要相位计数
+    venus_mars_harmonious = 0
+    venus_mars_challenging = 0
     
     for aspect in aspects:
         aspect_type = aspect["aspect"]
         planet1 = aspect["planet1"]
         planet2 = aspect["planet2"]
+        orb = aspect.get("orb", 5)  # 默认容许度为5
+        
+        # 根据相位紧密度调整权重 - 容许度越小加分越多
+        orb_factor = 1.0
+        if orb < 1.0:
+            orb_factor = 1.5  # 非常紧密的相位
+        elif orb < 2.0:
+            orb_factor = 1.2  # 紧密的相位
         
         # 太阳和月亮的相位权重更高
         weight = 1.0
-        if planet1 in ["Sun", "Moon"] or planet2 in ["Sun", "Moon"]:
-            weight = 2.0
-            
+        if "Sun" in [planet1, planet2] and "Moon" in [planet1, planet2]:
+            weight = 2.5  # 太阳-月亮相位最重要
+            if aspect_type in ["trine", "sextile", "conjunction"]:
+                sun_moon_harmonious += 1
+            elif aspect_type in ["square", "opposition"]:
+                sun_moon_challenging += 1
+        elif "Sun" in [planet1, planet2] or "Moon" in [planet1, planet2]:
+            weight = 1.8  # 太阳或月亮与其他行星
+        
+        # 金星和火星的相位权重
+        if "Venus" in [planet1, planet2] and "Mars" in [planet1, planet2]:
+            weight = 2.0  # 金星-火星相位对激情和兼容性重要
+            if aspect_type in ["trine", "sextile", "conjunction"]:
+                venus_mars_harmonious += 1
+            elif aspect_type in ["square", "opposition"]:
+                venus_mars_challenging += 1
+        
         # 根据相位类型加减分
         if aspect_type == "conjunction":
-            score += 3 * weight
+            neutral_aspects += 1
+            if "Saturn" in [planet1, planet2] or "Pluto" in [planet1, planet2]:
+                score += 2 * weight * orb_factor  # 土星/冥王星的合相更具挑战性但也有成长
+            else:
+                score += 3 * weight * orb_factor  # 其他合相通常更和谐
         elif aspect_type == "trine":
-            score += 5 * weight
+            harmonious_aspects += 1
+            score += 5 * weight * orb_factor
         elif aspect_type == "sextile":
-            score += 3 * weight
+            harmonious_aspects += 1
+            score += 3 * weight * orb_factor
         elif aspect_type == "square":
-            score -= 2 * weight
+            challenging_aspects += 1
+            if "Jupiter" in [planet1, planet2]:
+                score -= 1 * weight * orb_factor  # 木星的刑相更容易管理
+            else:
+                score -= 2 * weight * orb_factor
         elif aspect_type == "opposition":
-            score -= 1 * weight
+            challenging_aspects += 1
+            if "Mercury" in [planet1, planet2]:
+                score -= 1 * weight * orb_factor  # 水星的冲相可能是思想差异性
+            else:
+                score -= 1.5 * weight * orb_factor
+    
+    # 基于相位平衡额外调整
+    total_aspects = harmonious_aspects + challenging_aspects + neutral_aspects
+    if total_aspects > 0:
+        # 和谐相位与挑战相位的比例
+        harmony_ratio = harmonious_aspects / total_aspects
+        
+        # 如果和谐相位占比高，增加分数
+        if harmony_ratio > 0.7:
+            score += 8
+        elif harmony_ratio > 0.5:
+            score += 5
+        
+        # 重要行星组合的加分项
+        if sun_moon_harmonious > 0:
+            score += 7  # 太阳月亮和谐是最佳的指标之一
+        if venus_mars_harmonious > 0:
+            score += 5  # 金星火星和谐对吸引力很重要
+            
+        # 关键挑战相位的减分项
+        if sun_moon_challenging > 1:
+            score -= 6  # 多个太阳月亮挑战
+        if venus_mars_challenging > 1:
+            score -= 4  # 多个金星火星挑战相位
     
     # 确保分数在0-100之间
     return max(0, min(100, score))
 
 def get_compatibility_level(score):
     """根据兼容性分数获取兼容性级别"""
-    if score >= 80:
+    if score >= 90:
         return "Excellent"
-    elif score >= 70:
+    elif score >= 80:
         return "Very Good"
-    elif score >= 60:
+    elif score >= 70:
         return "Good"
+    elif score >= 60:
+        return "Above Average"
     elif score >= 50:
         return "Average"
     elif score >= 40:
+        return "Below Average"
+    elif score >= 30:
         return "Challenging"
-    else:
+    elif score >= 20:
         return "Difficult"
+    else:
+        return "Very Difficult"
 
 def generate_summary(aspects, score):
     """生成合盘总结"""
