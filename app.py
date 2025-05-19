@@ -1129,13 +1129,14 @@ def compare_charts():
             growth = result.get("growth_score", 0)
             karmic = result.get("karmic_score", 0)
             
-            avg_score = round((harmony + intimacy + passion + growth + karmic) / 5)
+            # 从五个分数中取最高值，而不是计算平均值
+            max_score = max(harmony, intimacy, passion, growth, karmic)
             
-            # 将平均分设置为compatibility_score
-            result["compatibility_score"] = avg_score
+            # 将最高分设置为compatibility_score
+            result["compatibility_score"] = max_score
             
             # 打印计算过程
-            print(f"DEBUG - Calculation: ({harmony} + {intimacy} + {passion} + {growth} + {karmic}) / 5 = {avg_score}")
+            print(f"DEBUG - Calculation: max({harmony}, {intimacy}, {passion}, {growth}, {karmic}) = {max_score}")
             
             # 根据更新后的分数调整兼容性级别
             if result["compatibility_score"] >= 90:
@@ -1163,7 +1164,7 @@ def compare_charts():
         # 增加一个临时标志帮助排查问题
         return jsonify({
             **result,
-            "debug_flag": f"Modified by app.py, calculated average score: ({result.get('harmony_score', 0)} + {result.get('intimacy_score', 0)} + {result.get('passion_score', 0)} + {result.get('growth_score', 0)} + {result.get('karmic_score', 0)}) / 5 = {result.get('compatibility_score')}"
+            "debug_flag": f"Modified by app.py, calculated max score: max({result.get('harmony_score', 0)}, {result.get('intimacy_score', 0)}, {result.get('passion_score', 0)}, {result.get('growth_score', 0)}, {result.get('karmic_score', 0)}) = {result.get('compatibility_score')}"
         })
         
     except Exception as e:
