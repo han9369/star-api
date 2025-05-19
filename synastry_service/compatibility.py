@@ -307,13 +307,13 @@ def calculate_relationship_aspects_scores(aspects, constellation_relationships, 
     - 成长: 个人发展和挑战
     - 业力连结: 灵魂连接和宿命
     """
-    # 初始化各方面的分数
+    # 初始化各方面的分数 - 从较低的基线开始，使得分数有更大变化
     aspect_scores = {
-        "harmony": 50,
-        "intimacy": 50,
-        "passion": 50,
-        "growth": 50,
-        "karmic_bond": 50
+        "harmony": 40,
+        "intimacy": 35,
+        "passion": 30,
+        "growth": 45,
+        "karmic_bond": 40
     }
     
     # 提取星宿关系数据
@@ -387,100 +387,100 @@ def calculate_relationship_aspects_scores(aspects, constellation_relationships, 
         if (planet1 == "Jupiter" or planet2 == "Jupiter") and aspect_type in ["trine", "sextile", "conjunction"]:
             aspect_scores["growth"] += 3
     
-    # 2. 应用星宿关系影响
+    # 2. 应用星宿关系影响 - 不同关系类型的调整因子
     
-    # 关系类型调整
+    # 关系类型调整 - 调整系数更加平衡
     if relationship_type == "MAITRI":  # Soul Connection
-        aspect_scores["harmony"] += 10
-        aspect_scores["intimacy"] += 8
-        aspect_scores["karmic_bond"] += 15
-    elif relationship_type == "SAHAJ":  # Mutual Growth
         aspect_scores["harmony"] += 8
-        aspect_scores["growth"] += 12
-        aspect_scores["karmic_bond"] += 5
-    elif relationship_type == "MITRA":  # Friendly Bonds
-        aspect_scores["harmony"] += 7
-        aspect_scores["intimacy"] += 4
-        aspect_scores["growth"] += 6
-    elif relationship_type == "KARMA":  # Karmic Bond
-        aspect_scores["karmic_bond"] += 20
-        aspect_scores["growth"] += 8
-        aspect_scores["passion"] += 3
-    elif relationship_type == "ADHI":  # Binding Forces
+        aspect_scores["intimacy"] += 7
+        aspect_scores["karmic_bond"] += 12
+    elif relationship_type == "SAHAJ":  # Mutual Growth
+        aspect_scores["harmony"] += 6
         aspect_scores["growth"] += 10
-        aspect_scores["karmic_bond"] += 8
-        aspect_scores["passion"] += 5
-        aspect_scores["harmony"] -= 5
-    elif relationship_type == "VAIRI":  # Dynamic Tension
-        aspect_scores["passion"] += 10
+        aspect_scores["karmic_bond"] += 4
+    elif relationship_type == "MITRA":  # Friendly Bonds
+        aspect_scores["harmony"] += 5
+        aspect_scores["intimacy"] += 3
+        aspect_scores["growth"] += 5
+    elif relationship_type == "KARMA":  # Karmic Bond
+        aspect_scores["karmic_bond"] += 15
         aspect_scores["growth"] += 7
-        aspect_scores["harmony"] -= 8
+        aspect_scores["passion"] += 2
+    elif relationship_type == "ADHI":  # Binding Forces
+        aspect_scores["growth"] += 8
         aspect_scores["karmic_bond"] += 6
+        aspect_scores["passion"] += 4
+        aspect_scores["harmony"] -= 4
+    elif relationship_type == "VAIRI":  # Dynamic Tension
+        aspect_scores["passion"] += 8
+        aspect_scores["growth"] += 6
+        aspect_scores["harmony"] -= 6
+        aspect_scores["karmic_bond"] += 5
     
     # 距离级别调整
     if distance_level == "NEAR":
-        # 近距离增强所有方面
+        # 近距离增强所有方面，但增幅更温和
         for key in aspect_scores:
-            aspect_scores[key] += 5
+            aspect_scores[key] += 4
     elif distance_level == "FAR":
         # 远距离降低强度
         for key in aspect_scores:
-            aspect_scores[key] -= 3
+            aspect_scores[key] -= 2
     
     # D9盘和谐度
     if d9_harmony:
-        aspect_scores["harmony"] += 8
-        aspect_scores["intimacy"] += 6
-        aspect_scores["karmic_bond"] += 7
+        aspect_scores["harmony"] += 6
+        aspect_scores["intimacy"] += 5
+        aspect_scores["karmic_bond"] += 6
     
-    # 行星能量影响
+    # 行星能量影响 - 调整为更加合理的系数
     energy_strength = planetary_energy.get("strength", 0)
     planets_involved = planetary_energy.get("planets_involved", [])
     
     if "SATURN" in planets_involved and "JUPITER" in planets_involved:
         # 土星-木星互动影响成长和业力连结
-        aspect_scores["growth"] += energy_strength * 0.8
-        aspect_scores["karmic_bond"] += energy_strength * 0.5
+        aspect_scores["growth"] += energy_strength * 0.6
+        aspect_scores["karmic_bond"] += energy_strength * 0.4
         
     if "MARS" in planets_involved and "VENUS" in planets_involved:
         # 火星-金星互动强烈影响激情和亲密度
-        aspect_scores["passion"] += energy_strength * 1.2
-        aspect_scores["intimacy"] += energy_strength * 0.7
+        aspect_scores["passion"] += energy_strength * 0.9
+        aspect_scores["intimacy"] += energy_strength * 0.5
         
     if "MOON" in planets_involved and "SUN" in planets_involved:
         # 月亮-太阳互动影响和谐度和亲密度
-        aspect_scores["harmony"] += energy_strength * 1.0
-        aspect_scores["intimacy"] += energy_strength * 1.0
+        aspect_scores["harmony"] += energy_strength * 0.8
+        aspect_scores["intimacy"] += energy_strength * 0.8
         
     if "MERCURY" in planets_involved and "MARS" in planets_involved:
         # 水星-火星互动影响成长和激情
-        aspect_scores["growth"] += energy_strength * 0.8
-        aspect_scores["passion"] += energy_strength * 0.6
+        aspect_scores["growth"] += energy_strength * 0.6
+        aspect_scores["passion"] += energy_strength * 0.5
     
-    # 3. 应用Ashtakoot兼容性影响
+    # 3. 应用Ashtakoot兼容性影响 - 更加合理的调整系数
     ashtakoot_points = nakshatra_compatibility.get('ashtakoot_points', 0)
     
     # 较高的Ashtakoot点数通常提高和谐度
     if ashtakoot_points >= 20:
-        aspect_scores["harmony"] += 8
-        aspect_scores["intimacy"] += 6
+        aspect_scores["harmony"] += 7
+        aspect_scores["intimacy"] += 5
     elif ashtakoot_points >= 16:
-        aspect_scores["harmony"] += 4
-        aspect_scores["intimacy"] += 3
+        aspect_scores["harmony"] += 3
+        aspect_scores["intimacy"] += 2
     
     # Vedha和Rajju doshas
     if nakshatra_compatibility.get('vedha_dosha', False):
-        aspect_scores["harmony"] -= 6
-        aspect_scores["karmic_bond"] += 3  # 可能表示重要的业力课题
+        aspect_scores["harmony"] -= 5
+        aspect_scores["karmic_bond"] += 2  # 可能表示重要的业力课题
         
     if nakshatra_compatibility.get('rajju_dosha', False):
-        aspect_scores["intimacy"] -= 5
-        aspect_scores["growth"] += 4  # 促进成长的挑战
+        aspect_scores["intimacy"] -= 4
+        aspect_scores["growth"] += 3  # 促进成长的挑战
     
     # Mahendra对业力连结是正面的
     if nakshatra_compatibility.get('mahendra', False):
-        aspect_scores["karmic_bond"] += 8
-        aspect_scores["harmony"] += 4
+        aspect_scores["karmic_bond"] += 7
+        aspect_scores["harmony"] += 3
     
     # 确保所有分数在0-100范围内
     for key in aspect_scores:
