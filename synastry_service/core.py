@@ -242,82 +242,236 @@ def get_aspect_orb(planet1_name, planet2_name, aspect_type):
     # 其他情况返回稍小的容许度
     return base_orb - 1
 
+def is_important_aspect(planet1_name, planet2_name, aspect_name, orb):
+    """
+    评估一个相位的重要性，返回True表示重要，False表示不重要。
+    这将根据行星的重要性、相位类型和紧密度（orb）来确定。
+    目标是将相位数量减少到约10个最重要的相位。
+    """
+    # 定义关键行星组 - 重要程度依次递减
+    primary_planets = ["Sun", "Moon"]  # 最重要的行星（太阳和月亮）
+    personal_planets = ["Mercury", "Venus", "Mars"]  # 个人行星
+    social_planets = ["Jupiter", "Saturn"]  # 社会行星
+    outer_planets = ["Uranus", "Neptune", "Pluto"]  # 外行星
+    
+    # 定义相位重要性（主要相位比次要相位更重要）
+    major_aspects = ["conjunction", "opposition", "trine", "square"]  # 主要相位
+    minor_aspects = ["sextile"]  # 次要相位
+    
+    # 1. 如果是太阳或月亮与任何行星的主要相位，且容差小于6度，保留
+    if ((planet1_name in primary_planets or planet2_name in primary_planets) and 
+            aspect_name in major_aspects and abs(orb) <= 6):
+        return True
+    
+    # 2. 如果是太阳和月亮之间的任何相位，不管容差多大都保留
+    if ((planet1_name == "Sun" and planet2_name == "Moon") or 
+            (planet1_name == "Moon" and planet2_name == "Sun")):
+        return True
+    
+    # 3. 如果是个人行星之间的主要相位，且容差小于5度，保留
+    if (planet1_name in personal_planets and planet2_name in personal_planets and 
+            aspect_name in major_aspects and abs(orb) <= 5):
+        return True
+    
+    # 4. 如果是个人行星与社会行星之间的合相或对分相，且容差小于4度，保留
+    if (((planet1_name in personal_planets and planet2_name in social_planets) or
+         (planet1_name in social_planets and planet2_name in personal_planets)) and
+            aspect_name in ["conjunction", "opposition"] and abs(orb) <= 4):
+        return True
+    
+    # 5. 其他情况下，只保留非常紧密（容差小于2度）的主要相位
+    if aspect_name in major_aspects and abs(orb) <= 2:
+        return True
+    
+    # 6. 特别处理一些著名的强力相位组合
+    special_combinations = [
+        # 金星-火星相位：关系中的激情
+        ("Venus", "Mars", ["conjunction", "trine", "sextile"]),
+        # 太阳-木星相位：关系中的乐观和成长
+        ("Sun", "Jupiter", ["conjunction", "trine"]),
+        # 月亮-金星相位：情感和爱的连接
+        ("Moon", "Venus", ["conjunction", "trine"]),
+        # 月亮-土星相位：情感责任和稳定性
+        ("Moon", "Saturn", ["conjunction", "trine"]),
+    ]
+    
+    for p1, p2, aspect_types in special_combinations:
+        if ((planet1_name == p1 and planet2_name == p2) or 
+                (planet1_name == p2 and planet2_name == p1)) and aspect_name in aspect_types:
+            return abs(orb) <= 5  # 对于特殊组合，容差可以适当放宽
+    
+    # 默认情况下，认为相位不够重要
+    return False
+
 def get_synastry_aspects(chart1, chart2):
-    """获取两个星盘之间的相位"""
+    """获取两个星盘之间的相位，只考虑最重要的行星组合"""
     aspects_list = []
     
-    # 定义要获取的行星
-    planets = {
+    # 减少要获取的行星，移除部分外行星
+    main_planets = {
         const.SUN: "Sun",
         const.MOON: "Moon",
         const.MERCURY: "Mercury",
         const.VENUS: "Venus", 
         const.MARS: "Mars",
         const.JUPITER: "Jupiter",
-        const.SATURN: "Saturn",
+        const.SATURN: "Saturn"
+    }
+    
+    # 可选的外行星 - 只在特定组合中使用
+    outer_planets = {
         const.URANUS: "Uranus",
         const.NEPTUNE: "Neptune",
         const.PLUTO: "Pluto"
     }
     
-    # 创建所有行星对的组合
-    for planet1_id, planet1_name in planets.items():
-        # 检查第一个行星是否存在于第一个星盘中
-        if not planet_exists(chart1, planet1_id):
+    # 定义关键相位组合，指定哪些行星对和相位类型需要考虑
+    # 格式: (行星1, 行星2, [允许的相位类型列表])
+    key_combinations = [
+        # 太阳和月亮的组合 - 最关键的关系指标
+        (const.SUN, const.MOON, [const.CONJUNCTION, const.SEXTILE, const.SQUARE, const.TRINE, const.OPPOSITION]),
+        
+        # 太阳与个人行星的组合
+        (const.SUN, const.MERCURY, [const.CONJUNCTION, const.SEXTILE]),  # 限制太阳-水星相位
+        (const.SUN, const.VENUS, [const.CONJUNCTION, const.SEXTILE]),    # 限制太阳-金星相位
+        (const.SUN, const.MARS, [const.CONJUNCTION, const.SEXTILE, const.SQUARE, const.TRINE, const.OPPOSITION]),
+        (const.SUN, const.JUPITER, [const.CONJUNCTION, const.TRINE, const.OPPOSITION]),
+        (const.SUN, const.SATURN, [const.CONJUNCTION, const.SQUARE, const.OPPOSITION]),
+        
+        # 月亮与个人行星的组合
+        (const.MOON, const.MERCURY, [const.CONJUNCTION, const.TRINE, const.SQUARE]),
+        (const.MOON, const.VENUS, [const.CONJUNCTION, const.TRINE, const.SQUARE, const.OPPOSITION]),
+        (const.MOON, const.MARS, [const.CONJUNCTION, const.TRINE, const.SQUARE, const.OPPOSITION]),
+        (const.MOON, const.JUPITER, [const.CONJUNCTION, const.TRINE]),
+        (const.MOON, const.SATURN, [const.CONJUNCTION, const.TRINE, const.SQUARE, const.OPPOSITION]),
+        
+        # 爱情和吸引力相关的关键组合
+        (const.VENUS, const.MARS, [const.CONJUNCTION, const.TRINE, const.SQUARE, const.OPPOSITION]),
+        (const.VENUS, const.JUPITER, [const.CONJUNCTION, const.TRINE]),
+        (const.VENUS, const.SATURN, [const.CONJUNCTION, const.OPPOSITION]),
+        
+        # 激情和冲突相关的组合
+        (const.MARS, const.JUPITER, [const.CONJUNCTION, const.TRINE, const.OPPOSITION]),
+        (const.MARS, const.SATURN, [const.CONJUNCTION, const.SQUARE, const.OPPOSITION]),
+        
+        # 成长和责任的组合
+        (const.JUPITER, const.SATURN, [const.CONJUNCTION, const.SQUARE, const.OPPOSITION]),
+        
+        # 少量外行星的特殊组合
+        (const.SUN, const.URANUS, [const.TRINE, const.SQUARE]),
+        (const.MOON, const.NEPTUNE, [const.OPPOSITION]),
+        (const.VENUS, const.PLUTO, [const.OPPOSITION, const.CONJUNCTION])
+    ]
+    
+    # 处理每一个关键组合
+    for planet1_id, planet2_id, allowed_aspects in key_combinations:
+        # 获取行星名称
+        planet1_name = main_planets.get(planet1_id) or outer_planets.get(planet1_id)
+        planet2_name = main_planets.get(planet2_id) or outer_planets.get(planet2_id)
+        
+        # 检查行星是否存在
+        if not planet1_name or not planet2_name:
+            continue
+        
+        # 检查行星是否存在于星盘中
+        if not planet_exists(chart1, planet1_id) or not planet_exists(chart2, planet2_id):
             continue
             
-        for planet2_id, planet2_name in planets.items():
-            # 检查第二个行星是否存在于第二个星盘中
-            if not planet_exists(chart2, planet2_id):
-                continue
+        try:
+            planet1 = chart1.getObject(planet1_id)
+            planet2 = chart2.getObject(planet2_id)
+            
+            # 安全获取行星位置
+            planet1_lon = safe_get_planet_position(chart1, planet1_id)
+            planet2_lon = safe_get_planet_position(chart2, planet2_id)
+            
+            # 临时修改planet对象的lon属性用于计算相位
+            original_lon1 = planet1.lon
+            original_lon2 = planet2.lon
+            
+            planet1.lon = planet1_lon
+            planet2.lon = planet2_lon
+            
+            # 只检查允许的相位类型
+            aspect_obj = aspects.getAspect(planet1, planet2, allowed_aspects)
+            
+            # 恢复原始lon值
+            planet1.lon = original_lon1
+            planet2.lon = original_lon2
+            
+            # 如果存在相位
+            if aspect_obj:
+                aspect_id = aspect_obj.type
+                aspect_name = ASPECTS.get(aspect_id, "unknown")
+                orb = aspect_obj.orb
                 
-            try:
-                planet1 = chart1.getObject(planet1_id)
-                planet2 = chart2.getObject(planet2_id)
+                # 获取针对这个行星组合的适当容许度
+                adjusted_orb = get_aspect_orb(planet1_name, planet2_name, aspect_id)
                 
-                # 安全获取行星位置
-                planet1_lon = safe_get_planet_position(chart1, planet1_id)
-                planet2_lon = safe_get_planet_position(chart2, planet2_id)
+                # 只考虑在允许的容许度范围内的相位且不是"unknown"相位
+                if aspect_name != "unknown" and abs(orb) <= adjusted_orb:
+                    # 检查是否是有效的相位组合
+                    if is_valid_aspect(planet1_name, planet2_name, aspect_name):
+                        # 添加相位
+                        aspects_list.append({
+                            "planet1": planet1_name,
+                            "planet2": planet2_name,
+                            "aspect": aspect_name,
+                            "orb": round(orb, 2),
+                            "quality": ASPECT_QUALITIES.get(aspect_id, "Neutral"),
+                            "influence": ASPECT_INFLUENCES.get(aspect_id, "Unknown influence"),
+                            "description": f"{planet1_name} {aspect_name} {planet2_name}"
+                        })
+            
+            # 检查另一方向的相位 (chart2 -> chart1)
+            # 这部分保持相同的逻辑，只是交换了行星顺序
+            planet1 = chart2.getObject(planet1_id)
+            planet2 = chart1.getObject(planet2_id)
+            
+            # 安全获取行星位置
+            planet1_lon = safe_get_planet_position(chart2, planet1_id)
+            planet2_lon = safe_get_planet_position(chart1, planet2_id)
+            
+            # 临时修改planet对象的lon属性用于计算相位
+            original_lon1 = planet1.lon
+            original_lon2 = planet2.lon
+            
+            planet1.lon = planet1_lon
+            planet2.lon = planet2_lon
+            
+            # 只检查允许的相位类型
+            aspect_obj = aspects.getAspect(planet1, planet2, allowed_aspects)
+            
+            # 恢复原始lon值
+            planet1.lon = original_lon1
+            planet2.lon = original_lon2
+            
+            # 如果存在相位
+            if aspect_obj:
+                aspect_id = aspect_obj.type
+                aspect_name = ASPECTS.get(aspect_id, "unknown")
+                orb = aspect_obj.orb
                 
-                # 临时修改planet对象的lon属性用于计算相位
-                original_lon1 = planet1.lon
-                original_lon2 = planet2.lon
+                # 获取针对这个行星组合的适当容许度
+                adjusted_orb = get_aspect_orb(planet2_name, planet1_name, aspect_id)  # 注意这里行星顺序已交换
                 
-                planet1.lon = planet1_lon
-                planet2.lon = planet2_lon
-                
-                # 检查相位
-                aspect_obj = aspects.getAspect(planet1, planet2, list(ASPECTS.keys()))
-                
-                # 恢复原始lon值
-                planet1.lon = original_lon1
-                planet2.lon = original_lon2
-                
-                # 如果存在相位
-                if aspect_obj:
-                    aspect_id = aspect_obj.type
-                    aspect_name = ASPECTS.get(aspect_id, "unknown")
-                    orb = aspect_obj.orb
-                    
-                    # 获取针对这个行星组合的适当容许度
-                    adjusted_orb = get_aspect_orb(planet1_name, planet2_name, aspect_id)
-                    
-                    # 只考虑在允许的容许度范围内的相位且不是"unknown"相位
-                    if aspect_name != "unknown" and abs(orb) <= adjusted_orb:
-                        # 检查是否是有效的相位组合
-                        if is_valid_aspect(planet1_name, planet2_name, aspect_name):
-                            # 只添加有效相位
-                            aspects_list.append({
-                                "planet1": planet1_name,
-                                "planet2": planet2_name,
-                                "aspect": aspect_name,
-                                "orb": round(orb, 2),
-                                "quality": ASPECT_QUALITIES.get(aspect_id, "Neutral"),
-                                "influence": ASPECT_INFLUENCES.get(aspect_id, "Unknown influence"),
-                                "description": f"{planet1_name} {aspect_name} {planet2_name}"
-                            })
-            except Exception:
-                pass  # 跳过出错的相位
+                # 只考虑在允许的容许度范围内的相位且不是"unknown"相位
+                if aspect_name != "unknown" and abs(orb) <= adjusted_orb:
+                    # 检查是否是有效的相位组合
+                    if is_valid_aspect(planet2_name, planet1_name, aspect_name):
+                        # 添加相位
+                        aspects_list.append({
+                            "planet1": planet2_name,
+                            "planet2": planet1_name,
+                            "aspect": aspect_name,
+                            "orb": round(orb, 2),
+                            "quality": ASPECT_QUALITIES.get(aspect_id, "Neutral"),
+                            "influence": ASPECT_INFLUENCES.get(aspect_id, "Unknown influence"),
+                            "description": f"{planet2_name} {aspect_name} {planet1_name}"
+                        })
+        except Exception as e:
+            print(f"Debug - Error in aspect calculation: {str(e)}")
+            pass  # 跳过出错的相位
     
     return aspects_list
 
