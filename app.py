@@ -96,6 +96,22 @@ ASPECT_COLORS = {
     -1: "#CCCCCC"    # 无相位 - 灰色
 }
 
+# 根据经度自动计算时区
+def estimate_timezone_from_longitude(longitude):
+    """
+    根据经度估算时区偏移（小时）
+    每15度经度对应1小时的时区差异
+    东经为正时区，西经为负时区
+    """
+    # 简化的时区计算: 经度/15 得到小时偏移量
+    timezone_offset = longitude / 15.0
+    
+    # 四舍五入到最接近的0.5小时
+    timezone_offset = round(timezone_offset * 2) / 2
+    
+    print(f"Debug - Estimated timezone from longitude {longitude}: {timezone_offset}")
+    return timezone_offset
+
 def calculate_chart(date, time, lat, lon):
     try:
         # 按照flatlib文档要求的格式: Datetime('2015/03/13', '17:00', '+00:00')
@@ -103,8 +119,21 @@ def calculate_chart(date, time, lat, lon):
         date_str = date.replace('-', '/')
         time_str = time
         
+        # 从经度估算时区偏移
+        estimated_timezone = estimate_timezone_from_longitude(lon)
+        
+        # 将数字时区转换为+HH:MM或-HH:MM格式
+        hours = int(estimated_timezone)
+        minutes = int(abs(estimated_timezone - hours) * 60)
+        sign = '+' if estimated_timezone >= 0 else '-'
+        utc_offset = f"{sign}{abs(hours):02d}:{abs(minutes):02d}"
+        
         # 创建日期时间对象
-        date_obj = Datetime(date_str, time_str)
+        date_obj = Datetime(date_str, time_str, utc_offset)
+        
+        # 输出调试信息
+        print(f"Debug - Date: {date_str}, Time: {time_str}, Estimated Timezone: {utc_offset}")
+        print(f"Debug - Julian Date: {date_obj.jd}")
         
         # 创建地理位置对象
         pos = GeoPos(lat, lon)
@@ -404,7 +433,8 @@ def index():
                 'date': 'YYYY-MM-DD 日期',
                 'time': 'HH:MM:SS 时间',
                 'latitude': '纬度',
-                'longitude': '经度'
+                'longitude': '经度',
+                'language': '语言 (en或zh，默认en)'
             }
         },
         'SVG图表': {
@@ -430,6 +460,24 @@ def index():
                 'language': 'en (default) or zh'
             },
             '返回': 'JSON格式的星盘数据和SVG格式的星盘图'
+        },
+        '合盘分析': {
+            '方法': 'POST',
+            '地址': '/api/compare',
+            '请求体': {
+                'user1_date': 'YYYY-MM-DD',
+                'user1_time': 'HH:MM:SS',
+                'user1_lat': 'latitude',
+                'user1_lon': 'longitude',
+                'user1_name': 'name (optional)',
+                'user2_date': 'YYYY-MM-DD',
+                'user2_time': 'HH:MM:SS',
+                'user2_lat': 'latitude',
+                'user2_lon': 'longitude',
+                'user2_name': 'name (optional)',
+                'language': 'en (default) or zh'
+            },
+            '返回': '两个星盘的合盘分析结果'
         }
     })
 
@@ -624,7 +672,25 @@ def generate_chart_svg(chart, lang='en'):
         house_start = (asc_longitude + i * 30) % 360
         houses_positions.append(house_start)
     
-    # 先绘制宫位分隔线
+    # 先绘制宫位扇形（白色背景）
+    for i, house_start in enumerate(houses_positions):
+        house_end = (house_start + 30) % 360
+        
+        # 创建宫位区域路径
+        start_rad = math.radians(90 - house_start)
+        end_rad = math.radians(90 - house_end)
+        
+        # 创建扇区路径
+        path_data = f"M {center_x + house_inner_radius * math.cos(start_rad)},{center_y - house_inner_radius * math.sin(start_rad)} "
+        path_data += f"L {center_x + house_outer_radius * math.cos(start_rad)},{center_y - house_outer_radius * math.sin(start_rad)} "
+        path_data += f"A {house_outer_radius},{house_outer_radius} 0 0,1 {center_x + house_outer_radius * math.cos(end_rad)},{center_y - house_outer_radius * math.sin(end_rad)} "
+        path_data += f"L {center_x + house_inner_radius * math.cos(end_rad)},{center_y - house_inner_radius * math.sin(end_rad)} "
+        path_data += f"A {house_inner_radius},{house_inner_radius} 0 0,0 {center_x + house_inner_radius * math.cos(start_rad)},{center_y - house_inner_radius * math.sin(start_rad)} Z"
+        
+        # 添加宫位区域，带白色填充
+        dwg.add(dwg.path(d=path_data, fill='white', stroke='black', stroke_width=0.5))
+    
+    # 绘制宫位分隔线
     for house_start in houses_positions:
         angle_rad = math.radians(90 - house_start)
         
@@ -666,7 +732,7 @@ def generate_chart_svg(chart, lang='en'):
                         fill=house_color, font_size='11px', font_weight='bold',
                         text_anchor='middle'))
     
-    # 计算星座和宫位位置
+    # 绘制星座和宫位位置
     signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 
             'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces']
     
@@ -814,130 +880,7 @@ def generate_chart_svg(chart, lang='en'):
         except Exception as e:
             print(f"Error plotting planet {planet['name']}: {e}")
     
-    # 修改行星度数标签显示方式
-    # 创建标签组以检测和避免重叠
-    planet_labels = []
-    
-    for planet in planets_data:
-        try:
-            # 简化行星名称
-            simple_name = planet['name']
-            if simple_name == "Ascendant":
-                simple_name = "Asc"
-            elif simple_name == "Jupiter":
-                simple_name = "Jup"
-            elif simple_name == "Mercury":
-                simple_name = "Mer"
-            elif simple_name == "Saturn":
-                simple_name = "Sat"
-            elif simple_name == "North_Node":
-                simple_name = "N.Node"
-            
-            # 在图表外围显示行星信息
-            angle_deg = planet['longitude']
-            # 格式化显示度数
-            degree_text = f"{simple_name}: {int(round(angle_deg))}°"
-            
-            # 计算标签位置，放在最外圈，调整距离防止文字超出图表边界
-            label_rad = math.radians(90 - angle_deg)
-            label_distance = house_outer_radius + 15  # 从25减小到15，使文字更靠近星盘
-            
-            # 处理标签间距和位置
-            text_anchor = 'middle'
-            label_y_offset = 0
-            
-            # 根据角度调整文本对齐方式和位置，使其更好地适应图表范围
-            if angle_deg >= 0 and angle_deg < 90:  # 右上象限
-                if angle_deg < 45:
-                    text_anchor = 'start'
-                    label_y_offset = -5
-                else:
-                    text_anchor = 'start'
-                    label_y_offset = 0
-            elif angle_deg >= 90 and angle_deg < 180:  # 右下象限
-                if angle_deg < 135:
-                    text_anchor = 'start'
-                    label_y_offset = 5
-                else:
-                    text_anchor = 'start'
-                    label_y_offset = 10
-            elif angle_deg >= 180 and angle_deg < 270:  # 左下象限
-                if angle_deg < 225:
-                    text_anchor = 'end'
-                    label_y_offset = 5
-                else:
-                    text_anchor = 'end'
-                    label_y_offset = 0
-            else:  # 左上象限
-                if angle_deg < 315:
-                    text_anchor = 'end'
-                    label_y_offset = -5
-                else:
-                    text_anchor = 'end'
-                    label_y_offset = -10
-            
-            label_x = center_x + label_distance * math.cos(label_rad)
-            label_y = center_y - label_distance * math.sin(label_rad) + label_y_offset
-            
-            # 保存标签数据以检测重叠
-            planet_labels.append({
-                'text': degree_text,
-                'x': label_x,
-                'y': label_y,
-                'anchor': text_anchor,
-                'angle': angle_deg
-            })
-        except Exception as e:
-            print(f"Error preparing planet label {planet['name']}: {e}")
-    
-    # 调整标签位置以避免重叠
-    def label_overlaps(l1, l2):
-        # 计算两个标签之间的距离
-        dx = l1['x'] - l2['x']
-        dy = l1['y'] - l2['y']
-        distance = math.sqrt(dx*dx + dy*dy)
-        
-        # 根据文本长度估计标签宽度
-        l1_width = len(l1['text']) * 5  # 每个字符约5像素宽
-        l2_width = len(l2['text']) * 5
-        
-        # 水平对齐的标签需要更多空间
-        if l1['anchor'] == l2['anchor']:
-            min_distance = 15  # 垂直最小间距
-        else:
-            min_distance = 10
-            
-        return distance < min_distance
-    
-    # 遍历所有标签对，调整重叠标签
-    for i, l1 in enumerate(planet_labels):
-        for j, l2 in enumerate(planet_labels):
-            if i < j and label_overlaps(l1, l2):
-                # 如果角度相近，垂直错开
-                angle_diff = abs(l1['angle'] - l2['angle'])
-                if angle_diff < 15 or angle_diff > 345:
-                    # 角度相近的标签，垂直错开
-                    l1['y'] -= 12
-                    l2['y'] += 12
-                else:
-                    # 角度不同的标签，调整距离
-                    if l1['angle'] > l2['angle']:
-                        # 稍微调整两个标签的位置
-                        l1_rad = math.radians(90 - (l1['angle'] + 5))
-                        l2_rad = math.radians(90 - (l2['angle'] - 5))
-                        
-                        label_distance = house_outer_radius + 15
-                        l1['x'] = center_x + label_distance * math.cos(l1_rad)
-                        l1['y'] = center_y - label_distance * math.sin(l1_rad) + l1.get('label_y_offset', 0)
-                        
-                        l2['x'] = center_x + label_distance * math.cos(l2_rad)
-                        l2['y'] = center_y - label_distance * math.sin(l2_rad) + l2.get('label_y_offset', 0)
-    
-    # 添加调整后的标签
-    for label in planet_labels:
-        dwg.add(dwg.text(label['text'], insert=(label['x'], label['y']),
-                    fill='black', font_size='8px',
-                    text_anchor=label['anchor']))
+    # 行星标签部分已移除 - 根据用户要求，不再显示最外围的行星度数标签
     
     # 返回SVG字符串
     return dwg.tostring()
@@ -1163,6 +1106,10 @@ def compare_charts():
                 "error": f"Missing required fields: {', '.join(missing_fields)}"
             }), 400
         
+        # 输出调试信息
+        print(f"Debug - User1: {user1_date} {user1_time}")
+        print(f"Debug - User2: {user2_date} {user2_time}")
+        
         # 计算两个星盘
         chart1 = calculate_chart(user1_date, user1_time, user1_lat, user1_lon)
         chart2 = calculate_chart(user2_date, user2_time, user2_lat, user2_lon)
@@ -1170,7 +1117,54 @@ def compare_charts():
         # 调用synastry_service进行合盘分析
         result = get_synastry_analysis(chart1, chart2, lang, user1_name, user2_name)
         
-        return jsonify(result)
+        # 调试输出
+        print(f"DEBUG - Before modification: compatibility_score={result.get('compatibility_score')}, relationship_type_score={result.get('relationship_type_score')}")
+        
+        # 修改compatibility_score为五个维度分数的平均值
+        if "harmony_score" in result and "intimacy_score" in result and "passion_score" in result and "growth_score" in result and "karmic_score" in result:
+            # 计算五个维度分数的平均值并取整
+            harmony = result.get("harmony_score", 0)
+            intimacy = result.get("intimacy_score", 0)
+            passion = result.get("passion_score", 0)
+            growth = result.get("growth_score", 0)
+            karmic = result.get("karmic_score", 0)
+            
+            avg_score = round((harmony + intimacy + passion + growth + karmic) / 5)
+            
+            # 将平均分设置为compatibility_score
+            result["compatibility_score"] = avg_score
+            
+            # 打印计算过程
+            print(f"DEBUG - Calculation: ({harmony} + {intimacy} + {passion} + {growth} + {karmic}) / 5 = {avg_score}")
+            
+            # 根据更新后的分数调整兼容性级别
+            if result["compatibility_score"] >= 90:
+                result["compatibility_level"] = "excellent"
+            elif result["compatibility_score"] >= 80:
+                result["compatibility_level"] = "very good"
+            elif result["compatibility_score"] >= 70:
+                result["compatibility_level"] = "good"
+            elif result["compatibility_score"] >= 60:
+                result["compatibility_level"] = "above average"
+            elif result["compatibility_score"] >= 50:
+                result["compatibility_level"] = "average"
+            elif result["compatibility_score"] >= 40:
+                result["compatibility_level"] = "below average"
+            elif result["compatibility_score"] >= 30:
+                result["compatibility_level"] = "challenging"
+            elif result["compatibility_score"] >= 20:
+                result["compatibility_level"] = "difficult"
+            else:
+                result["compatibility_level"] = "very difficult"
+        
+        # 调试输出
+        print(f"DEBUG - After modification: compatibility_score={result.get('compatibility_score')}")
+        
+        # 增加一个临时标志帮助排查问题
+        return jsonify({
+            **result,
+            "debug_flag": f"Modified by app.py, calculated average score: ({result.get('harmony_score', 0)} + {result.get('intimacy_score', 0)} + {result.get('passion_score', 0)} + {result.get('growth_score', 0)} + {result.get('karmic_score', 0)}) / 5 = {result.get('compatibility_score')}"
+        })
         
     except Exception as e:
         error_msg = str(e)
