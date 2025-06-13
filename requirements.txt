@@ -1,10 +1,7 @@
-Flask==3.0.0
+Flask==3.0.3
 flask-cors==4.0.0
-flatlib==0.4.1
-pytz==2023.3
-Werkzeug==3.0.1
+flatlib==0.2.3
+pytz==2024.1
+python-dateutil==2.9.0
 gunicorn==21.2.0
-python-dateutil==2.8.2
 svgwrite==1.4.3
-matplotlib==3.5.1
-numpy==1.22.3
