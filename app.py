@@ -12,6 +12,7 @@ import pytz
 import svgwrite
 import math
 from synastry_service import get_synastry_analysis
+from daily_fortune_service import DailyFortuneCalculator
 
 app = Flask(__name__)
 CORS(app)
@@ -1174,6 +1175,53 @@ def compare_charts():
         return jsonify({
             "status": "error",
             "error": error_msg
+        }), 400
+
+# Initialize daily fortune calculator
+daily_fortune_calc = DailyFortuneCalculator()
+
+@app.route('/api/daily', methods=['POST'])
+def daily_fortune():
+    """Calculate daily fortune based on birth information"""
+    try:
+        data = request.get_json()
+        
+        # Required fields
+        birth_date = data.get('birth_date')
+        birth_time = data.get('birth_time')
+        birth_lat = float(data.get('birth_latitude'))
+        birth_lon = float(data.get('birth_longitude'))
+        
+        # Optional fields
+        target_date = data.get('target_date')  # If not provided, uses today
+        target_timezone = data.get('target_timezone', 'UTC')
+        
+        # Validate required fields
+        if not all([birth_date, birth_time, birth_lat is not None, birth_lon is not None]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: birth_date, birth_time, birth_latitude, birth_longitude'
+            }), 400
+        
+        # Calculate daily fortune
+        result = daily_fortune_calc.calculate_daily_fortune(
+            birth_date=birth_date,
+            birth_time=birth_time,
+            birth_lat=birth_lat,
+            birth_lon=birth_lon,
+            target_date=target_date,
+            target_timezone=target_timezone
+        )
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Daily Fortune API error: {error_msg}")
+        
+        return jsonify({
+            'success': False,
+            'error': error_msg
         }), 400
 
 if __name__ == '__main__':

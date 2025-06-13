@@ -1,226 +1,366 @@
-# 星座占星API
+# Star API - 星座占星API服务
 
-这是一个基于Flask和flatlib的占星学API，提供星盘计算和合盘分析功能。API支持中英文双语输出，方便集成到各类应用中。
+A comprehensive astrology API service providing daily horoscope calculations, synastry analysis, and astrological chart calculations.
 
-## 主要功能
+一个综合性的占星学API服务，提供每日运势计算、合盘分析和星盘计算功能。
 
-### 1. 个人星盘分析
-- 计算太阳、月亮、上升、金星、火星、水星、北交点、木星、土星等行星位置
-- 计算行星之间的相位关系（合相、六分相、刑相、三分相、对分相）
-- 支持自定义出生时间和地点
-- 生成星盘SVG图表可视化
-- 双语支持（英文/中文）
+## 🌟 主要功能 / Main Features
 
-### 2. 合盘分析（关系占星）
-- 两个星盘之间的行星相位分析
-- 综合关系兼容性评分及分析
-- 基于星宿（Nakshatra）的关系类型分析
-- 提供关系维度评分（和谐度、亲密度、激情度、成长性、业力连结）
-- 行星落宫分析
-- 角色分配（如"发展催化剂"和"成长体验者"）
+### 新功能 / New Features
+- **🔮 每日运势分析 / Daily Fortune Analysis**: 基于出生信息的个性化每日运势
+- **📊 百分制评分 / Percentage Scoring**: 1-100整数评分系统
+- **🎯 生活领域预测 / Life Area Forecasts**: 事业、爱情、健康、成长四大领域
+- **🌙 详细月相信息 / Detailed Lunar Information**: 月相名称、照明度、能量类型
+- **🍀 幸运元素 / Lucky Elements**: 幸运数字、颜色、方位、宝石
+- **📋 扁平化JSON结构 / Flat JSON Structure**: 30个字段的单层JSON结构
 
-## 安装与配置
+### 原有功能 / Existing Features
+- **⭐ 个人星盘分析 / Personal Chart Analysis**: 行星位置、相位关系计算
+- **💕 合盘分析 / Synastry Analysis**: 两人关系兼容性分析
+- **📈 综合兼容性评分 / Compatibility Scoring**: 多维度关系评估
+- **🎨 星盘图表生成 / Chart Visualization**: SVG格式星盘图
+- **🌍 中英双语支持 / Bilingual Support**: 中文/英文双语输出
 
-1. 克隆仓库
-2. 创建虚拟环境：
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 或
-.\venv\Scripts\activate  # Windows
+## 🚀 API接口 / API Endpoints
+
+### 1. 每日运势分析 / Daily Fortune Analysis
 ```
-3. 安装依赖：
-```bash
-pip install -r requirements.txt
+POST /api/daily
 ```
 
-## API端点详解
+根据出生信息计算个性化每日运势 / Calculate personalized daily fortune based on birth information.
 
-### 个人星盘分析相关端点
-
-#### 1. 主页 `GET /`
-- 返回API基本信息和使用方法
-
-#### 2. 计算星盘基本信息 `POST /api/calculate`
-- 根据出生信息计算星盘中行星位置和相位
-- 请求体格式：
+#### 请求格式 / Request Body
 ```json
 {
-    "date": "YYYY-MM-DD",
-    "time": "HH:MM:SS",
-    "latitude": 纬度,
-    "longitude": 经度,
-    "language": "en"  // 可选，默认为"en"，可以设为"zh"获取中文
+    "birth_date": "1990-06-15",
+    "birth_time": "10:30:00",
+    "birth_latitude": 40.7128,
+    "birth_longitude": -74.0060,
+    "target_date": "2025-06-13"
 }
 ```
-- 响应包含行星位置和相位信息
 
-#### 3. 生成星盘图表 `POST /api/chart_svg`
-- 生成星盘SVG图形
-- 请求体格式与`/api/calculate`相同
-- 返回SVG格式的星盘图
-
-#### 4. 中文接口别名 `POST /api/calculate_zh`
-- 与`/api/calculate`功能相同，默认返回中文结果
-
-#### 5. 综合数据 `POST /api/combined`
-- 同时返回星盘数据和SVG图表
-- 请求体格式与`/api/calculate`相同
-- 响应包含行星位置、相位信息和星盘SVG图表
-
-### 合盘分析相关端点
-
-#### 1. 合盘分析 `POST /api/compare`
-- 分析两个星盘之间的关系
-- 请求体格式：
-```json
-{
-    "user1_date": "YYYY-MM-DD",
-    "user1_time": "HH:MM:SS",
-    "user1_lat": 纬度,
-    "user1_lon": 经度,
-    "user1_name": "Person A",  // 可选
-    "user2_date": "YYYY-MM-DD",
-    "user2_time": "HH:MM:SS",
-    "user2_lat": 纬度,
-    "user2_lon": 经度,
-    "user2_name": "Person B",  // 可选
-    "language": "en"  // 可选，默认为"en"，可以设为"zh"获取中文
-}
-```
-- 响应内容：
-  - 合盘相位列表
-  - 总体兼容性评分与等级
-  - 各维度评分（和谐度、亲密度、激情度、成长性、业力连结）
-  - 关系类型与描述
-  - 双方行星落宫情况
-  - 双方在关系中的角色
-
-## 响应示例
-
-### 个人星盘分析响应示例
+#### 响应结构 (30个字段) / Response Structure (30 Fields)
 ```json
 {
     "success": true,
-    "date": "1990-01-01",
-    "time": "12:00:00",
-    "latitude": 39.9042,
-    "longitude": 116.4074,
-    "planets": [
-        {
-            "sign": "Capricorn",
-            "sign_cn": "摩羯座",
-            "longitude": 280.81,
-            "name": "Sun",
-            "name_cn": "太阳"
-        },
-        // ... 其他行星信息
-    ],
-    "aspects": [
-        {
-            "planet1": "Sun",
-            "planet2": "Moon",
-            "type": 60,
-            "type_name": "Sextile",
-            "type_name_cn": "六分相",
-            "orb": 7.55
-        }
-        // ... 其他相位信息
+    "date": "2025-06-13",
+    
+    // 运势概览 / Fortune Overview
+    "fortune_score": 92,
+    "fortune_level": "Exceptionally Favorable",
+    "fortune_summary": "今日星象配置特别有利，为您的生活带来持久的积极影响...",
+    "wisdom_for_today": "相信你的直觉，它是指引你走向最高善的内在指南针",
+    
+    // 幸运元素 / Lucky Elements
+    "lucky_numbers": [1, 3, 29],
+    "lucky_colors": ["Navy Blue", "Ivory"],
+    "lucky_direction": "Southeast",
+    "lucky_stone": "Moonstone",
+    
+    // 生活领域预测 / Life Area Forecasts
+    "career_rating": 4,
+    "career_forecast": "火星的影响今天激发了你的职业雄心...",
+    "career_tip": "专注于解决问题而不是发现问题...",
+    
+    "love_rating": 3,
+    "love_forecast": "月亮的影响增强了你对他人需求的直觉理解...",
+    "love_tip": "在关系中练习脆弱性，真实的分享比试图表现完美更能加深联系",
+    
+    "health_rating": 5,
+    "health_forecast": "你的体力从火星的激励影响中得到提升...",
+    "health_tip": "如果可能的话，花时间在大自然中...",
+    
+    "growth_rating": 5,
+    "growth_forecast": "海王星的直觉影响增强了你与内在智慧的连接...",
+    "growth_tip": "留出时间进行头脑风暴或创意项目...",
+    
+    // 每日指导 / Daily Guidance
+    "focus_today": "今日的天体影响为有意义的关系建设创造了强大背景...",
+    "challenges_today": "火星的影响今天可能表现为对过程的不耐烦...",
+    
+    // 月相信息 / Lunar Phase Information
+    "lunar_phase_name": "Waning Gibbous",
+    "lunar_illumination_percent": 84.9,
+    "lunar_energy_type": "Gratitude & Sharing",
+    "days_to_next_lunar_phase": 5.1,
+    "lunar_phase_description": "月亮开始减弱，鼓励分享智慧并对最近的成就表达感激...",
+    
+    // 吉时建议 / Auspicious Hours
+    "auspicious_hours": [
+        {"time_range": "7:00-9:00", "activity": "Meditation & Planning"},
+        {"time_range": "13:00-15:00", "activity": "Business Meetings"}
     ]
 }
 ```
 
-### 合盘分析响应示例
+### 2. 个人星盘分析 / Personal Chart Analysis
+
+#### 基本星盘计算 / Basic Chart Calculation
+```
+POST /api/calculate
+```
+
+#### 中文接口 / Chinese Interface
+```
+POST /api/calculate_zh
+```
+
+#### 请求格式 / Request Body
 ```json
 {
+    "date": "1990-01-01",
+    "time": "12:00:00",
+    "latitude": 39.9042,
+    "longitude": 116.4074,
+    "language": "zh"
+}
+```
+
+#### 星盘图表生成 / Chart Visualization
+```
+POST /api/chart_svg
+```
+
+#### 综合数据 / Combined Data
+```
+POST /api/combined
+```
+
+### 3. 合盘分析 / Synastry Analysis
+```
+POST /api/synastry
+POST /api/compare
+```
+
+计算两人关系兼容性 / Calculate relationship compatibility between two people.
+
+#### 请求格式 / Request Body
+```json
+{
+    "user1_date": "1990-05-15",
+    "user1_time": "14:30:00",
+    "user1_lat": 40.7128,
+    "user1_lon": -74.0060,
+    "user1_name": "Person A",
+    "user2_date": "1992-08-22",
+    "user2_time": "09:15:00",
+    "user2_lat": 34.0522,
+    "user2_lon": -118.2437,
+    "user2_name": "Person B",
+    "language": "zh"
+}
+```
+
+#### 响应示例 / Response Example
+```json
+{
+    "status": "success",
+    "compatibility_score": 85,
+    "compatibility_level": "excellent",
+    "relationship_type": "mutual growth",
+    "relationship_summary": "这是一个具有出色和谐度的强大连接...",
     "aspects": [
         {
             "name": "sun conjunction moon",
             "orb": 3.25,
-            "summary": "strong connection, merging energies"
-        },
-        // ... 其他相位信息
+            "summary": "强烈的连接，能量融合"
+        }
     ],
-    "compatibility_level": "excellent",
-    "compatibility_score": 85,
-    "growth_level": "good",
-    "growth_score": 75,
-    "harmony_level": "excellent",
     "harmony_score": 90,
-    "intimacy_level": "very good",
     "intimacy_score": 82,
-    "karmic_level": "good",
+    "passion_score": 65,
+    "growth_score": 75,
     "karmic_score": 60,
     "p1p2_influence": "developmental catalyst",
-    "p1p2_influence_sum": "Person A serves as the Developmental Catalyst.",
-    "p1p2house": ["sun in 7th house", "moon in 3rd house", "..."],
-    "p2p1_influence": "growth experiencer",
-    "p2p1_influence_sum": "Person B serves as the Growth Experiencer.",
-    "p2p1house": ["sun in 5th house", "moon in 11th house", "..."],
-    "passion_level": "good",
-    "passion_score": 65,
-    "relationship_summary": "This is a strong connection with excellent harmony...",
-    "relationship_type": "mutual growth",
-    "relationship_type_score": 78,
-    "status": "success"
+    "p2p1_influence": "growth experiencer"
 }
 ```
 
-## 客户端使用示例
+## 📊 字段参考 / Field Reference
 
-### JavaScript/Fetch API
-```javascript
-// 获取个人星盘数据
-async function fetchChart(birthData) {
-  const response = await fetch('https://your-api-url/api/calculate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(birthData)
-  });
-  return await response.json();
-}
+### 每日运势字段 / Daily Fortune Fields
 
-// 获取合盘分析
-async function fetchSynastry(person1, person2) {
-  const response = await fetch('https://your-api-url/api/compare', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      user1_date: person1.date,
-      user1_time: person1.time,
-      user1_lat: person1.latitude,
-      user1_lon: person1.longitude,
-      user1_name: person1.name,
-      user2_date: person2.date,
-      user2_time: person2.time,
-      user2_lat: person2.latitude,
-      user2_lon: person2.longitude,
-      user2_name: person2.name
-    })
-  });
-  return await response.json();
-}
-```
+| 字段名 / Field | 类型 / Type | 说明 / Description |
+|----------------|-------------|-------------------|
+| `fortune_score` | integer (1-100) | 每日运势百分比评分 / Daily fortune percentage |
+| `fortune_level` | string | 运势等级分类 / Fortune level classification |
+| `fortune_summary` | string | 详细运势分析 (2-3句话) / Extended analysis |
+| `career_rating` | integer (1-5) | 事业运势评分 / Career prospects rating |
+| `love_rating` | integer (1-5) | 爱情运势评分 / Love prospects rating |
+| `health_rating` | integer (1-5) | 健康运势评分 / Health prospects rating |
+| `growth_rating` | integer (1-5) | 成长运势评分 / Growth prospects rating |
+| `lunar_phase_name` | string | 当前月相名称 / Current moon phase |
+| `lunar_illumination_percent` | float | 月亮照明百分比 / Moon illumination percentage |
+| `lunar_energy_type` | string | 月相能量类型 / Phase energy classification |
 
-## 部署
+### 星盘分析字段 / Chart Analysis Fields
 
-### 部署到服务器
-1. 确保安装了所有依赖
-2. 使用gunicorn或uwsgi作为WSGI服务器
+| 字段名 / Field | 类型 / Type | 说明 / Description |
+|----------------|-------------|-------------------|
+| `planets` | array | 行星位置信息 / Planetary positions |
+| `aspects` | array | 行星相位关系 / Planetary aspects |
+| `houses` | array | 宫位信息 / House positions |
+
+### 合盘分析字段 / Synastry Fields
+
+| 字段名 / Field | 类型 / Type | 说明 / Description |
+|----------------|-------------|-------------------|
+| `compatibility_score` | integer (0-100) | 总体兼容性评分 / Overall compatibility |
+| `harmony_score` | integer (0-100) | 和谐度评分 / Harmony score |
+| `intimacy_score` | integer (0-100) | 亲密度评分 / Intimacy score |
+| `passion_score` | integer (0-100) | 激情度评分 / Passion score |
+| `growth_score` | integer (0-100) | 成长性评分 / Growth score |
+
+## 🛠️ 安装与部署 / Installation & Deployment
+
+### 本地开发 / Local Development
 ```bash
-gunicorn app:app -b 0.0.0.0:5002
+# 安装依赖 / Install dependencies
+pip install -r requirements.txt
+
+# 本地运行 / Run locally
+python app.py
 ```
 
-### 部署到云平台
-#### Render
-1. 在Render创建Web Service
-2. 连接GitHub仓库
-3. 设置构建命令：`pip install -r requirements.txt`
-4. 设置启动命令：`gunicorn app:app`
+### Render部署 / Render Deployment
+1. 连接GitHub仓库到Render / Connect GitHub repository to Render
+2. 创建新的Web服务 / Create new Web Service
+3. 配置设置 / Configure settings:
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `gunicorn app:app`
 
-## 注意事项
-- 时间格式必须是24小时制 (HH:MM:SS)
-- 日期格式必须是YYYY-MM-DD
-- 经纬度必须是有效的数值
-- 默认API返回英文，可通过language参数设置语言
-- 服务默认运行在5002端口 
+### 环境要求 / Requirements
+- Python 3.8+
+- Flask 3.0.0
+- flatlib 0.4.1
+- pytz 2023.3
+
+## 🔧 集成示例 / Integration Examples
+
+### JavaScript/Fetch
+```javascript
+// 每日运势 / Daily Fortune
+const dailyResponse = await fetch('/api/daily', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+        birth_date: "1990-06-15",
+        birth_time: "10:30:00",
+        birth_latitude: 40.7128,
+        birth_longitude: -74.0060
+    })
+});
+
+const dailyData = await dailyResponse.json();
+console.log(dailyData.fortune_score); // 92
+
+// 合盘分析 / Synastry Analysis
+const synastryResponse = await fetch('/api/synastry', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+        user1_date: "1990-05-15",
+        user1_time: "14:30:00",
+        user1_lat: 40.7128,
+        user1_lon: -74.0060,
+        user2_date: "1992-08-22",
+        user2_time: "09:15:00",
+        user2_lat: 34.0522,
+        user2_lon: -118.2437
+    })
+});
+
+const synastryData = await synastryResponse.json();
+console.log(synastryData.compatibility_score); // 85
+```
+
+### Bubble.io集成 / Bubble.io Integration
+将API字段直接映射到数据库列 / Map API fields directly to database columns:
+- `fortune_score` → 数字字段 / Number field
+- `career_forecast` → 长文本字段 / Long text field
+- `lucky_numbers` → 列表字段 / List field
+- `compatibility_score` → 数字字段 / Number field
+
+### Python示例 / Python Example
+```python
+import requests
+
+# 每日运势 / Daily Fortune
+response = requests.post('http://your-api-url/api/daily', json={
+    "birth_date": "1990-06-15",
+    "birth_time": "10:30:00",
+    "birth_latitude": 40.7128,
+    "birth_longitude": -74.0060
+})
+
+data = response.json()
+print(f"运势评分 / Fortune Score: {data['fortune_score']}/100")
+
+# 合盘分析 / Synastry Analysis
+synastry_response = requests.post('http://your-api-url/api/synastry', json={
+    "user1_date": "1990-05-15",
+    "user1_time": "14:30:00",
+    "user1_lat": 40.7128,
+    "user1_lon": -74.0060,
+    "user2_date": "1992-08-22",
+    "user2_time": "09:15:00",
+    "user2_lat": 34.0522,
+    "user2_lon": -118.2437
+})
+
+synastry_data = synastry_response.json()
+print(f"兼容性评分 / Compatibility: {synastry_data['compatibility_score']}/100")
+```
+
+## 📁 项目结构 / Project Structure
+
+```
+star-api-main/
+├── app.py                      # Flask主应用 / Flask application
+├── requirements.txt            # 依赖包 / Dependencies
+├── Procfile                   # Render部署配置 / Render deployment config
+├── README.md                  # 项目文档 / Project documentation
+├── .gitignore                 # Git忽略配置 / Git ignore config
+├── daily_fortune_service/     # 每日运势模块 / Daily fortune module
+│   ├── __init__.py
+│   ├── core.py               # 主要计算逻辑 / Main calculation logic
+│   └── utils.py              # 辅助工具函数 / Helper functions
+└── synastry_service/         # 合盘分析模块 / Synastry module
+    └── ...
+```
+
+## 🌍 内容质量 / Content Quality
+
+- **语言 / Language**: 地道的中英双语 / Natural Chinese and English
+- **语调 / Tone**: 专业且易于理解 / Professional yet accessible
+- **多样性 / Variety**: 多种内容变化避免重复 / Multiple variations to prevent repetition
+- **文化 / Cultural**: 符合东西方占星传统 / Eastern and Western astrology traditions
+
+## 📈 API状态 / API Status
+
+- ✅ **生产就绪 / Production Ready**
+- ✅ **Render部署优化 / Render Deployment Optimized**
+- ✅ **Bubble.io兼容 / Bubble.io Compatible**
+- ✅ **30个综合数据字段 / 30 Comprehensive Data Fields**
+- ✅ **扁平化JSON结构 / Flat JSON Structure**
+- ✅ **中英双语支持 / Bilingual Support**
+
+## 🔒 CORS支持 / CORS Support
+
+API支持跨域请求，适用于 / The API includes CORS headers for cross-origin requests, suitable for:
+- 前端Web应用 / Frontend web applications
+- 移动应用后端 / Mobile app backends
+- 第三方集成 / Third-party integrations
+
+## 📞 技术支持 / Technical Support
+
+如需API访问权限或集成支持，请联系开发团队。
+For API access and integration support, please contact the development team.
+
+---
+
+**版本 / Version**: 2.0  
+**许可证 / License**: 专有 / Proprietary  
+**最后更新 / Last Updated**: 2025-06
